@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmileVirtual — Prototype Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--body);color:var(--ink);min-height:100vh;
+    background:radial-gradient(1200px 600px at 10% -5%,#F0E3CF 0,transparent 55%),
+      radial-gradient(1000px 700px at 100% 100%,#E4EEEC 0,transparent 50%),#ECE3D5;
+    padding:54px 20px;display:flex;flex-direction:column;align-items:center}
+  .wrap{max-width:980px;width:100%}
+  .brand{font-weight:800;font-size:22px;display:flex;align-items:center;gap:10px}
+  .brand .logo{color:var(--gold);font-size:26px}
+  h1{font-family:var(--display);font-weight:500;font-size:42px;line-height:1.05;color:var(--teal-deep);margin:22px 0 12px;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--coral)}
+  .lede{font-size:17px;color:rgba(30,42,42,.66);max-width:640px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:var(--shadow-sm);
+    display:flex;flex-direction:column;transition:.18s;text-decoration:none;color:inherit}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:var(--teal)}
+  .card .ic{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:var(--teal-soft);margin-bottom:16px}
+  .card h2{font-family:var(--display);font-weight:500;font-size:23px;color:var(--teal-deep)}
+  .card p{font-size:14px;color:rgba(30,42,42,.62);margin-top:8px;line-height:1.5;flex:1}
+  .card .go{margin-top:18px;font-weight:700;color:var(--teal);font-size:14.5px}
+  .card.soon{opacity:.92}
+  .tagrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+  .pill{font-size:11.5px;font-weight:600;color:var(--teal-deep);background:var(--teal-soft);padding:5px 10px;border-radius:99px}
+  .soonpill{background:var(--coral-soft);color:#B6442A}
+  .note{margin-top:30px;font-size:13px;color:rgba(30,42,42,.55);background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;line-height:1.55}
+  .note b{color:var(--teal-deep)}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="logo">◗</span> SmileVirtual</div>
+  <h1>One loop: <em>preview → consult → book</em></h1>
+  <p class="lede">A working prototype of the virtual smile-consultation experience — the patient capture flow, the practice console that turns leads into booked chairs, and the doctor directory that feeds it. Built as a high-fidelity demo; a patient submission really lands in the console.</p>
+
+  <div class="grid">
+    <a class="card" href="patient/">
+      <div class="ic">📱</div>
+      <h2>Patient flow</h2>
+      <p>Mobile capture: goals → photos (real camera) → instant smile preview → personalized video request. Conversion-optimized around earned commitment.</p>
+      <div class="tagrow"><span class="pill">Live camera</span><span class="pill">Smile sim gate</span><span class="pill">Saves to console</span></div>
+      <span class="go">Open patient flow →</span>
+    </a>
+
+    <a class="card" href="doctor/">
+      <div class="ic">🩺</div>
+      <h2>Practice console</h2>
+      <p>The clinical work queue with an SLA clock. AI-drafted video scripts, in-browser recording with teleprompter, the patient closing-page, and source-level booking analytics.</p>
+      <div class="tagrow"><span class="pill">Triage + SLA</span><span class="pill">AI script</span><span class="pill">Record &amp; send</span><span class="pill">Funnel by ad source</span></div>
+      <span class="go">Open practice console →</span>
+    </a>
+
+    <div class="card soon">
+      <div class="ic">📍</div>
+      <h2>Doctor directory</h2>
+      <p>Simulation-first lead engine (the Crisalix flip): patients get the preview <em>first</em>, then get matched to local verified SmileVirtual doctors by goal + distance. Response-time badges reward fast consults; shareable previews drive organic leads.</p>
+      <div class="tagrow"><span class="pill soonpill">Next build</span><span class="pill">NPI-verified</span><span class="pill">Geo + goal match</span></div>
+      <span class="go" style="color:rgba(30,42,42,.4)">Spec'd — see README §Directory</span>
+    </div>
+
+    <div class="card note" style="display:block">
+      <b>How to try it end-to-end</b><br>
+      1. Open the <b>Patient flow</b>, flip on “Smile simulation,” complete a consult.<br>
+      2. Open the <b>Practice console</b> — your submission appears at the top of the queue (🔥 hot).<br>
+      3. Open it, record a video against the AI script, send it, then preview the patient closing-page.<br><br>
+      Data is shared via your browser's local storage. Use <b>Reset demo</b> in the console to restore the seeded queue.
+    </div>
+  </div>
+</div>
+</body>
+</html>

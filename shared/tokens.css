@@ -1,0 +1,24 @@
+/* SmileVirtual — shared design tokens (kept in sync with the patient prototype) */
+:root{
+  --cream:#F6F1E9;
+  --cream-2:#EFE7DA;
+  --ink:#1E2A2A;
+  --teal:#0E5450;
+  --teal-deep:#0A3F3C;
+  --teal-soft:#E3EEEC;
+  --coral:#E8775B;
+  --coral-soft:#F6E0D8;
+  --gold:#C9A24B;
+  --line:rgba(30,42,42,.10);
+  --shadow:0 18px 50px -18px rgba(14,84,80,.45);
+  --shadow-sm:0 6px 18px -8px rgba(14,84,80,.35);
+  --r:22px;
+  --display:'Fraunces',Georgia,serif;
+  --body:'Plus Jakarta Sans',system-ui,sans-serif;
+
+  /* status + heat colors */
+  --hot:#E8775B; --hot-soft:#F6E0D8;
+  --warm:#C9A24B; --warm-soft:#F3E9CF;
+  --cold:#7E8C8A; --cold-soft:#E7ECEB;
+  --ok:#2C9A7E;  --ok-soft:#DCF0E9;
+}

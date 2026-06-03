@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmileVirtual — Practice Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">◗</span> SmileVirtual <span class="brand-sub">Practice Console</span></div>
+  <nav class="nav">
+    <button class="navbtn active" data-view="queue">Consult queue <span class="badge-count" id="queueBadge">0</span></button>
+    <button class="navbtn" data-view="dash">Performance</button>
+  </nav>
+  <div class="topright">
+    <label class="rolepick">
+      <span>Signed in as</span>
+      <select id="rolePick">
+        <option value="Dr. Brian Harris">Dr. Brian Harris (Dentist)</option>
+        <option value="Maya R.">Maya R. (Front desk)</option>
+      </select>
+    </label>
+    <button class="linkbtn" id="resetDemo" title="Reset demo data">↺ Reset demo</button>
+    <a class="linkbtn" href="../patient/" target="_blank">Patient flow ↗</a>
+  </div>
+</header>
+
+<!-- ============ QUEUE VIEW ============ -->
+<main id="view-queue" class="view">
+  <div class="view-head">
+    <div>
+      <h2>Consult queue</h2>
+      <p class="muted" id="queueSla">—</p>
+    </div>
+    <div class="filters" id="filters">
+      <button class="chipf active" data-filter="all">All</button>
+      <button class="chipf" data-filter="mine">Assigned to me</button>
+      <button class="chipf" data-filter="unassigned">Unassigned</button>
+      <button class="chipf" data-filter="hot">🔥 Hot</button>
+      <button class="chipf" data-filter="recover">Recover (abandoned)</button>
+      <button class="chipf" data-filter="awaiting">Sent · awaiting action</button>
+    </div>
+  </div>
+  <div class="lead-list" id="leadList"></div>
+</main>
+
+<!-- ============ DASHBOARD VIEW ============ -->
+<main id="view-dash" class="view" hidden>
+  <div class="view-head"><h2>Performance</h2><p class="muted">The marketing loop — what actually turns ad spend into booked chair time.</p></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="panel">
+    <h3>Funnel by ad source</h3>
+    <p class="muted small">Leads → Sent → Viewed → Booked. This is the number that decides where the next dollar goes.</p>
+    <table class="funnel" id="funnel"></table>
+  </div>
+</main>
+
+<!-- ============ LEAD DRAWER (consult workspace) ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"><!-- filled by JS --></aside>
+
+<!-- ============ RECORDER MODAL ============ -->
+<div class="modal" id="recModal">
+  <div class="modal-card rec-card">
+    <div class="rec-stage">
+      <video id="recVideo" playsinline autoplay muted></video>
+      <div class="teleprompter" id="teleprompter"></div>
+      <div class="rec-dot" id="recDot" hidden>● REC <span id="recTime">0:00</span></div>
+    </div>
+    <div class="rec-bar">
+      <button class="linkbtn" onclick="DoctorApp.closeRecorder()">Cancel</button>
+      <button class="cta-d" id="recToggle" onclick="DoctorApp.toggleRecord()">● Start recording</button>
+      <button class="cta-d ghost-d" id="recUse" onclick="DoctorApp.useRecording()" hidden>Use this take →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PATIENT EMAIL / CLOSING PAGE PREVIEW ============ -->
+<div class="modal" id="emailModal">
+  <div class="modal-card email-card" id="emailCard"><!-- filled by JS --></div>
+</div>
+
+<script src="../shared/store.js"></script>
+<script src="../shared/script-gen.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
