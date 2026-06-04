@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetic Virtual — Med Spa Plan Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="mk"></span> Aesthetic Virtual <span class="brand-sub">Med Spa · Plan Builder</span></div>
+  <nav class="nav">
+    <button class="navbtn active" data-view="queue">Plan queue</button>
+    <button class="navbtn" data-view="perf">Performance</button>
+  </nav>
+  <div class="topright">
+    <button class="linkbtn" id="resetDemo">↺ Reset demo</button>
+    <a class="linkbtn" href="patient/" target="_blank">Patient flow ↗</a>
+    <a class="linkbtn" href="../" target="_blank">Concept ↗</a>
+  </div>
+</header>
+
+<main class="view" id="view-queue">
+  <div class="view-head">
+    <div><h2>Plan queue</h2><p class="muted" id="queueNote">—</p></div>
+    <div class="filters" id="filters">
+      <button class="chipf active" data-filter="review">Needs review</button>
+      <button class="chipf" data-filter="all">All</button>
+      <button class="chipf" data-filter="sent">Sent</button>
+      <button class="chipf" data-filter="booked">Booked</button>
+    </div>
+  </div>
+  <div class="lead-list" id="leadList"></div>
+</main>
+
+<main class="view" id="view-perf" hidden>
+  <div class="view-head"><div><h2>Performance</h2><p class="muted">Volume model — plans approved at scale, memberships, revenue.</p></div></div>
+  <div id="perf"></div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<!-- PATIENT PLAN PAGE PREVIEW -->
+<div class="modal" id="planModal"><div class="modal-card plan-card" id="planCard"></div></div>
+
+<script src="store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

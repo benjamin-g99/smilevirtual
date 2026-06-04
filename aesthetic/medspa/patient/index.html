@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetic Virtual — Med Spa Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../patient/styles.css">
+<style>
+  :root{ --plum:#7A3E55; --plum-deep:#5A2C40; --plum-soft:#F2E2E8; --rose:#D98E86; }
+  .doc .av,.ava-sm,.conf-av{background:linear-gradient(135deg,#7A3E55,#D98E86)!important}
+  /* instant plan */
+  .planbox{margin-top:8px;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .planhd{background:var(--plum);color:#fff;padding:13px 15px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  .planhd .ai{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:7px}
+  .plan-l{display:flex;justify-content:space-between;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line);font-size:14px}
+  .plan-l .q{font-size:11.5px;color:rgba(42,34,48,.5)}
+  .plan-l b{color:var(--plum-deep)}
+  .plan-sum{padding:13px 15px;background:var(--plum-soft)}
+  .plan-sum .r{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0}
+  .plan-sum .r.big{font-weight:800;font-size:16px;color:var(--plum-deep);border-top:1px solid rgba(122,62,85,.2);margin-top:5px;padding-top:7px}
+  .plan-sum .disc{color:#2F7E58;font-weight:700}
+  .memcard{margin-top:14px;background:var(--rose-soft, #F7E4E0);border-radius:14px;padding:14px 15px}
+  .memcard b{font-family:var(--display);font-size:15px;color:var(--plum-deep)}
+  .memcard ul{margin:7px 0 0 16px;font-size:12.5px;color:rgba(42,34,48,.7);line-height:1.55}
+  .finchips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .finchips span{font-size:11.5px;font-weight:700;color:var(--plum-deep);background:var(--plum-soft);padding:6px 10px;border-radius:99px}
+  .qchip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .qchip{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer}
+  .qchip.on{background:var(--plum);color:#fff;border-color:var(--plum)}
+</style>
+</head>
+<body>
+
+<div class="stage-label">Aesthetic Virtual · Med Spa &nbsp;·&nbsp; <a href="../">Plan Builder →</a></div>
+
+<div class="phone"><div class="screen-wrap">
+  <div class="progress hidden" id="progress"><button class="back invis" id="backBtn" onclick="goBack()">‹</button><div class="bar"><i id="barFill"></i></div></div>
+
+  <!-- WELCOME -->
+  <section class="screen active" data-key="welcome">
+    <div class="doc"><div class="av" id="spaAv">L</div><div class="meta"><b id="spaName">Lumière Aesthetics</b><span class="role" id="spaTag">Look like you, refreshed.</span><span class="stars"><span class="s">★★★★★</span><b id="spaRating">4.9</b> · <span id="spaReviews">1320</span> reviews</span></div></div>
+    <div class="eyebrow" style="margin-top:16px">Instant treatment plan</div>
+    <h1>See your personalized plan — <em>instantly</em>.</h1>
+    <p class="sub">Tell us what you'd like to improve and get a personalized treatment plan in seconds — with transparent pricing, membership savings, and one-tap booking.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><b>Tell us your concerns</b><p>What you'd love to improve.</p></div></div>
+      <div class="step"><div class="n">2</div><div><b>Get your instant plan</b><p>Treatments, pricing & membership — right away.</p></div></div>
+      <div class="step"><div class="n">3</div><div><b>Book &amp; save</b><p>Reserve online; our coordinator confirms.</p></div></div>
+    </div>
+    <div class="trust"><span class="pill">✓ Instant &amp; free</span><span class="pill">✓ Transparent pricing</span><span class="pill">✓ Financing available</span></div>
+    <button class="cta" onclick="next()">Build my plan</button>
+  </section>
+
+  <!-- CONCERNS -->
+  <section class="screen" data-key="concerns">
+    <div class="eyebrow">Step 1 · Your concerns</div>
+    <h1>What would you love to <em>improve?</em></h1>
+    <p class="sub">Pick anything that applies — we'll build a plan around it.</p>
+    <div class="chips" id="concernChips"></div>
+    <div class="ordiv">anything specific?</div>
+    <div class="gtext"><textarea id="goalText" placeholder="In your own words…"></textarea></div>
+    <div class="eyebrow" style="margin-top:18px">How soon?</div>
+    <div class="qchip-row" id="timeChips"></div>
+    <div class="grow"></div>
+    <button class="cta" id="concernCta" onclick="next()" disabled>See my plan ✨</button>
+  </section>
+
+  <!-- PLAN (instant reward) -->
+  <section class="screen" data-key="plan">
+    <div class="eyebrow">✨ Your personalized plan</div>
+    <h1 id="planHead">Here's your <em>plan</em></h1>
+    <p class="sub">Built instantly from your concerns. Save it to lock in member pricing and book.</p>
+    <div id="planRender"></div>
+    <div class="grow"></div>
+    <button class="cta" onclick="next()">Save my plan &amp; book →</button>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="screen" data-key="contact">
+    <div class="eyebrow">Last step</div>
+    <h1>Where should we send <em>your plan?</em></h1>
+    <p class="sub">We'll text your plan + a booking link. Our coordinator confirms the details.</p>
+    <div class="field"><label>First name</label><input id="fname" placeholder="Jordan" oninput="validateForm()"></div>
+    <div class="field"><label>Email</label><input id="email" type="email" placeholder="you@email.com" oninput="validateForm()"></div>
+    <div class="field"><label>Phone</label><input id="phone" placeholder="(555) 000-0000" oninput="validateForm()"></div>
+    <div class="privacy"><span class="lk">🔒</span><span>No spam — just your plan and a way to book.</span></div>
+    <div class="grow"></div>
+    <button class="cta" id="submitCta" onclick="submitForm()" disabled>Get my plan &amp; booking link</button>
+  </section>
+
+  <!-- CONFIRM -->
+  <section class="screen confirm" data-key="confirm">
+    <div class="confetti" id="confetti"></div>
+    <div class="conf-av"><span id="spaAvConf">L</span><div class="tick">✓</div></div>
+    <h1>You're set, <em id="confName">there</em>!</h1>
+    <p class="sub">Your plan is on its way. <span id="bookerName">Our coordinator</span> will text you a link to book and answer any questions.</p>
+    <div class="next">
+      <div class="item"><div class="d"></div><div><b>Your plan + pricing — sent now</b><p>Treatments, member savings and financing options.</p></div></div>
+      <div class="item"><div class="d"></div><div><b>Book in a tap</b><p>Reserve online; we'll confirm your appointment.</p></div></div>
+    </div>
+    <div class="grow"></div>
+    <button class="cta ghost" onclick="restart()">↺ Restart demo</button>
+  </section>
+
+</div></div>
+
+<div class="devnote" id="devnote"><div class="h"><span class="dot"></span> Lead capture <span class="muted">— AI plan drafted · sent to the Plan Builder</span></div><div id="devbody"><span class="muted">// waiting…</span></div></div>
+
+<script src="../store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
