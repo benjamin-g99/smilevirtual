@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmileVirtual — Embeddable Widgets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="stage-label">Embeddable widgets · Drop on any site &nbsp;·&nbsp; <a href="../doctor/">Doctor portal →</a></div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">For the practice website</div>
+    <h1>Put the smile preview <em>everywhere</em></h1>
+    <p>Three copy-paste widgets that send visitors straight into the patient flow. One script tag, no dependencies — they inject their own styles so they look right on any site, themed to your brand color.</p>
+  </div>
+
+  <div class="how">
+    <b>How to embed (3 steps)</b>
+    <ol>
+      <li>Copy the <code>&lt;script&gt;</code> snippet for the widget you want (below).</li>
+      <li>Paste it into your website's HTML where you want it to appear (the floating button can go anywhere).</li>
+      <li>Set <code>data-target</code> to your hosted patient flow URL and <code>data-accent</code> to your brand color. Done.</li>
+    </ol>
+  </div>
+
+  <!-- 1 — INLINE CTA CARD -->
+  <section class="card">
+    <h2><span class="num">1</span> Inline CTA card</h2>
+    <p class="desc">A "see your new smile free" card you embed inside a page — service pages, a blog post, the homepage hero. Shows your headline, optional star rating, and a button into the patient flow.</p>
+    <div class="cols">
+      <div class="preview-box"><span class="tag">Live preview</span><div id="prev-inline"></div></div>
+      <div class="snippet">
+        <div class="label"><span>Copy-paste snippet</span></div>
+        <button class="copybtn" data-copy="snip-inline">Copy</button>
+        <pre><code id="snip-inline"></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 — FLOATING BUTTON -->
+  <section class="card">
+    <h2><span class="num">2</span> Floating button</h2>
+    <p class="desc">A fixed bottom-right pill that follows the visitor as they scroll — always-available "Free Smile Preview". Add the script once anywhere on the page.</p>
+    <div class="cols">
+      <div class="preview-box float-demo"><span class="tag">Live preview (pinned inside this box)</span><div id="prev-float"></div></div>
+      <div class="snippet">
+        <div class="label"><span>Copy-paste snippet</span></div>
+        <button class="copybtn" data-copy="snip-float">Copy</button>
+        <pre><code id="snip-float"></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 — REVIEW BADGE -->
+  <section class="card">
+    <h2><span class="num">3</span> Review badge</h2>
+    <p class="desc">A compact Google star-rating badge — social proof you can drop in a footer or sidebar. Pass the rating and count as data attributes; it links to your reviews (or the patient flow).</p>
+    <div class="cols">
+      <div class="preview-box"><span class="tag">Live preview</span><div id="prev-badge"></div></div>
+      <div class="snippet">
+        <div class="label"><span>Copy-paste snippet</span></div>
+        <button class="copybtn" data-copy="snip-badge">Copy</button>
+        <pre><code id="snip-badge"></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <p class="footnote">
+    All widgets are served from one file: <b>embed/widget.js</b>. It reads config from the script tag's
+    <code style="font-family:ui-monospace,monospace">data-*</code> attributes and works with no other dependencies.
+  </p>
+
+</div>
+
+<!-- Load the store only to theme previews with the practice's saved brand color. -->
+<script src="../shared/store.js"></script>
+<!-- Load the widget in MANUAL mode so it doesn't auto-mount on this docs page;
+     we render previews via window.SmileWidget.render(). -->
+<script src="widget.js" data-mount="manual"></script>
+<script>
+(function () {
+  'use strict';
+  if (window.SmileStore && window.SmileStore.ensureSeeded) window.SmileStore.ensureSeeded();
+  var cfg = (window.SmileStore && window.SmileStore.config) ? window.SmileStore.config() : {};
+  var brand = cfg.brand || {};
+  var reviews = cfg.reviews || {};
+  var accent = brand.primary || '#0E5450';
+  var practice = brand.name || 'our patients';
+  var rating = (reviews.googleRating != null ? reviews.googleRating : 4.9);
+  var count = reviews.googleCount != null ? String(reviews.googleCount) : '1284';
+  var reviewUrl = reviews.googleUrl || '';
+
+  // HTML-escape for the displayed snippets
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Build a real, copy-pasteable <script> snippet string (NOT executed).
+  function snippet(attrs) {
+    var lines = ['<script src="https://YOURDOMAIN.com/embed/widget.js"'];
+    attrs.forEach(function (pair) {
+      lines.push('        ' + pair[0] + '="' + pair[1] + '"');
+    });
+    // close on its own line so the </script> isn't parsed as the page's tag
+    return lines.join('\n') + '><' + '/script>';
+  }
+
+  // Render snippet text into a <pre><code>, HTML-escaped.
+  function showSnippet(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text; // textContent => safe, displays literal tags
+  }
+
+  /* --- snippets --- */
+  var inlineSnip = snippet([
+    ['data-widget', 'inline'],
+    ['data-target', 'https://YOURDOMAIN.com/patient/'],
+    ['data-accent', accent],
+    ['data-headline', 'See your new smile — free'],
+    ['data-rating', String(rating)],
+    ['data-count', count]
+  ]);
+  var floatSnip = snippet([
+    ['data-widget', 'floating'],
+    ['data-target', 'https://YOURDOMAIN.com/patient/'],
+    ['data-accent', accent],
+    ['data-cta', '✨ Free Smile Preview']
+  ]);
+  var badgeSnip = snippet([
+    ['data-widget', 'badge'],
+    ['data-rating', String(rating)],
+    ['data-count', count],
+    ['data-name', practice],
+    ['data-review-url', reviewUrl || 'https://YOURDOMAIN.com/reviews'],
+    ['data-accent', accent]
+  ]);
+
+  showSnippet('snip-inline', inlineSnip);
+  showSnippet('snip-float', floatSnip);
+  showSnippet('snip-badge', badgeSnip);
+
+  /* --- live previews via the widget's public render API --- */
+  // Previews point at the local demo patient flow so they actually work here.
+  var demoTarget = '../patient/?from=embed';
+  function ready() {
+    if (!window.SmileWidget) { setTimeout(ready, 30); return; }
+    window.SmileWidget.render('#prev-inline', {
+      type: 'inline', target: demoTarget, accent: accent,
+      headline: 'See your new smile — free', rating: rating, count: count
+    });
+    window.SmileWidget.render('#prev-float', {
+      type: 'floating', target: demoTarget, accent: accent, cta: '✨ Free Smile Preview'
+    });
+    window.SmileWidget.render('#prev-badge', {
+      type: 'badge', target: demoTarget, accent: accent,
+      rating: rating, count: count, name: practice, reviewUrl: reviewUrl
+    });
+  }
+  ready();
+
+  /* --- copy buttons --- */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.copybtn') : null;
+    if (!btn) return;
+    var src = document.getElementById(btn.getAttribute('data-copy'));
+    if (!src) return;
+    var text = src.textContent;
+    var done = function () { btn.textContent = 'Copied ✓'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  });
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>

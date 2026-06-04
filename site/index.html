@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smile Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- =====================  HEADER  ===================== -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark" id="brandMark">🦷</span>
+      <span class="brand-name" id="brandName">Smile Studio</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#possible">See results</a>
+      <a href="#how">How it works</a>
+      <a href="#doctor">Meet the doctor</a>
+    </nav>
+    <a class="btn btn-sm" id="navCta" href="../patient/?from=site">Start free</a>
+  </div>
+</header>
+
+<!-- =====================  HERO  ===================== -->
+<section class="hero" id="top">
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <div class="eyebrow">Free smile assessment</div>
+      <h1 id="heroHeadline">See your dream smile</h1>
+      <p class="lede" id="heroSubhead">Get an instant preview and a personal video consultation.</p>
+      <div class="hero-actions">
+        <a class="btn btn-lg" id="heroCta" href="../patient/?from=site">Start my free smile preview</a>
+        <span class="hero-note">✓ 100% free &nbsp;·&nbsp; ✓ No office visit to begin</span>
+      </div>
+      <div class="hero-reviews" id="heroReviews"></div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hero-photo" id="heroPhoto"></div>
+        <div class="hero-card-meta">
+          <b id="heroDocName">Your dentist</b>
+          <span id="heroDocRole">Cosmetic Dentist</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================  REVIEWS / SOCIAL PROOF  ===================== -->
+<section class="reviews" id="reviews">
+  <div class="wrap">
+    <div class="reviews-row" id="reviewsRow"></div>
+  </div>
+</section>
+
+<!-- =====================  SEE WHAT'S POSSIBLE  ===================== -->
+<section class="possible" id="possible">
+  <div class="wrap possible-inner">
+    <div class="section-head">
+      <div class="eyebrow">See what's possible</div>
+      <h2>A brighter smile, <em>previewed in seconds</em></h2>
+      <p class="section-sub">Drag the slider to see the difference. Your personal preview is built from your own photos.</p>
+    </div>
+    <div class="ba" id="ba">
+      <canvas id="baCanvas" width="720" height="460"></canvas>
+      <span class="ba-lbl b">Before</span>
+      <span class="ba-lbl a">After</span>
+      <div class="ba-divider" id="baDivider"><div class="ba-grip">⇄</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================  HOW IT WORKS  ===================== -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="section-head center">
+      <div class="eyebrow">How it works</div>
+      <h2>Three simple steps</h2>
+    </div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Get your instant preview</h3>
+        <p>Snap a couple of selfies from your phone and see a preview of your potential new smile right away.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>A personal video from the doctor</h3>
+        <p>The doctor reviews your photos and records a personalized video walking through your real options.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Book if you love it</h3>
+        <p>No pressure. If you love the plan, book a visit in one tap — completely on your terms.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================  MEET THE DOCTOR  ===================== -->
+<section class="doctor" id="doctor">
+  <div class="wrap doctor-inner">
+    <div class="doc-photo" id="docPhoto"></div>
+    <div class="doc-copy">
+      <div class="eyebrow">Meet the doctor</div>
+      <h2 id="docName">Your dentist</h2>
+      <div class="doc-cred" id="docCred"></div>
+      <p class="doc-bio" id="docBio"></p>
+      <div class="doc-loc" id="docLoc"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================  FINAL CTA BAND  ===================== -->
+<section class="cta-band" id="cta-band">
+  <div class="wrap cta-band-inner">
+    <h2 id="bandHeadline">Ready to see your new smile?</h2>
+    <p id="bandSubhead">It's free, and it starts right from your phone.</p>
+    <a class="btn btn-lg btn-light" id="bandCta" href="../patient/?from=site">Start my free smile preview</a>
+  </div>
+</section>
+
+<!-- =====================  FOOTER  ===================== -->
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark" id="footMark">🦷</span>
+      <span class="brand-name" id="footName">Smile Studio</span>
+    </div>
+    <div class="footer-contact" id="footContact"></div>
+    <div class="footer-fine" id="footFine"></div>
+  </div>
+</footer>
+
+<script src="../shared/store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

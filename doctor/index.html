@@ -17,6 +17,7 @@
   <nav class="nav">
     <button class="navbtn active" data-view="queue">Consult queue <span class="badge-count" id="queueBadge">0</span></button>
     <button class="navbtn" data-view="dash">Performance</button>
+    <button class="navbtn" data-view="settings">Settings</button>
   </nav>
   <div class="topright">
     <label class="rolepick">
@@ -51,15 +52,16 @@
   <div class="lead-list" id="leadList"></div>
 </main>
 
-<!-- ============ DASHBOARD VIEW ============ -->
+<!-- ============ PERFORMANCE VIEW ============ -->
 <main id="view-dash" class="view" hidden>
-  <div class="view-head"><h2>Performance</h2><p class="muted">The marketing loop — what actually turns ad spend into booked chair time.</p></div>
-  <div class="metrics" id="metrics"></div>
-  <div class="panel">
-    <h3>Funnel by ad source</h3>
-    <p class="muted small">Leads → Sent → Viewed → Booked. This is the number that decides where the next dollar goes.</p>
-    <table class="funnel" id="funnel"></table>
-  </div>
+  <div class="view-head"><h2>Performance</h2><p class="muted">The full lead-capture workflow — where money comes in, and where you're losing people.</p></div>
+  <div id="perf"><!-- filled by JS --></div>
+</main>
+
+<!-- ============ SETTINGS VIEW ============ -->
+<main id="view-settings" class="view" hidden>
+  <div class="view-head"><h2>Settings</h2><p class="muted">Practice profile, team, intake questions, tracking, reviews & public pages.</p></div>
+  <div id="settings"><!-- filled by JS --></div>
 </main>
 
 <!-- ============ LEAD DRAWER (consult workspace) ============ -->

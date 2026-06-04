@@ -1,0 +1,139 @@
+/* =============================================================================
+   SmileVirtual — link-in-bio page (Linktree-style)
+   Mobile-first, brand-themed. Theme vars (--brand / --accent) are set inline
+   by app.js from config.brand; CSS falls back to the teal/gold tokens.
+   ============================================================================= */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  font-family:var(--body);
+  color:var(--ink);
+  background:
+    radial-gradient(1100px 600px at 10% -8%, #F0E3CF 0%, transparent 55%),
+    radial-gradient(900px 700px at 100% 105%, #E4EEEC 0%, transparent 50%),
+    #ECE3D5;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  gap:14px;
+  padding:26px 16px 40px;
+}
+
+.stage-label{
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:rgba(30,42,42,.5);font-weight:600;
+  display:flex;align-items:center;gap:10px;
+}
+.stage-label a{color:var(--teal);text-decoration:none;font-weight:700}
+.stage-label::before,.stage-label::after{content:"";height:1px;width:30px;background:rgba(30,42,42,.2)}
+
+/* the card */
+.bio{
+  --brand:var(--teal);
+  --brand-deep:var(--teal-deep);
+  --accent:var(--gold);
+  width:440px;max-width:100%;
+  background:var(--cream);
+  border-radius:30px;
+  padding:30px 24px 26px;
+  box-shadow:var(--shadow), inset 0 0 0 1.5px rgba(255,255,255,.5);
+  border:1px solid rgba(30,42,42,.07);
+  position:relative;overflow:hidden;
+}
+/* brand-tinted halo at the top of the card */
+.bio::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:150px;z-index:0;
+  background:radial-gradient(120% 100% at 50% -20%, color-mix(in srgb, var(--brand) 22%, transparent) 0%, transparent 70%);
+  pointer-events:none;
+}
+.bio > *{position:relative;z-index:1}
+
+.bio-loading{text-align:center;color:rgba(30,42,42,.5);padding:40px 0;font-weight:600}
+
+/* header / identity */
+.bhead{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+.brandmark{
+  display:inline-flex;align-items:center;gap:9px;
+  font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--brand-deep);
+}
+.brandmark img{height:26px;width:auto;max-width:140px;object-fit:contain;display:block}
+.brandmark .glyph{font-size:18px}
+
+.avatar{
+  width:96px;height:96px;border-radius:50%;flex:none;
+  object-fit:cover;border:3px solid #fff;
+  box-shadow:0 10px 26px -10px rgba(14,84,80,.5);
+  background:linear-gradient(150deg, var(--brand), var(--brand-deep));
+  display:grid;place-items:center;
+  color:#fff;font-family:var(--display);font-weight:500;font-size:34px;letter-spacing:.02em;
+  overflow:hidden;margin-top:4px;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+
+.bname{font-family:var(--display);font-weight:500;font-size:25px;line-height:1.1;color:var(--ink)}
+.brole{font-size:13px;color:rgba(30,42,42,.6);font-weight:600;margin-top:-4px}
+.btag{font-size:14px;line-height:1.5;color:rgba(30,42,42,.7);max-width:34ch;margin-top:2px}
+
+.stars{
+  display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:rgba(30,42,42,.62);
+  background:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:99px;margin-top:2px;
+  box-shadow:var(--shadow-sm);
+}
+.stars .s{color:var(--accent);letter-spacing:1px;font-size:14px}
+.stars b{font-weight:700;color:var(--ink)}
+
+/* primary CTA */
+.primary{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;border:none;cursor:pointer;text-decoration:none;
+  margin-top:22px;
+  background:linear-gradient(135deg, var(--brand), var(--brand-deep));
+  color:#fff;font-family:var(--body);font-weight:700;font-size:17px;
+  padding:18px 18px;border-radius:18px;
+  box-shadow:0 14px 30px -12px color-mix(in srgb, var(--brand) 80%, #000 0%);
+  transition:transform .15s ease, box-shadow .2s ease;
+  position:relative;overflow:hidden;
+}
+.primary::after{ /* subtle sheen */
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(120deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%);
+  transform:translateX(-120%);transition:transform .6s ease;
+}
+.primary:hover{transform:translateY(-2px);box-shadow:0 18px 36px -12px color-mix(in srgb, var(--brand) 85%, #000 0%)}
+.primary:hover::after{transform:translateX(120%)}
+.primary:active{transform:translateY(0)}
+.primary .sub{display:block;font-size:11.5px;font-weight:600;opacity:.85;margin-top:2px}
+.primary .ctawrap{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+
+/* link rows */
+.links{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+.lrow{
+  display:flex;align-items:center;gap:13px;
+  width:100%;text-decoration:none;cursor:pointer;border:1.5px solid var(--line);
+  background:#fff;border-radius:16px;padding:15px 16px;
+  color:var(--ink);font-weight:600;font-size:15px;text-align:left;
+  box-shadow:var(--shadow-sm);
+  transition:transform .14s ease, border-color .18s ease, background .18s ease;
+}
+.lrow:hover{transform:translateY(-1px);border-color:var(--brand)}
+.lrow .lico{
+  width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:19px;
+  background:color-mix(in srgb, var(--brand) 12%, #fff);
+}
+.lrow .llabel{flex:1}
+.lrow .lcount{font-size:11px;font-weight:700;color:rgba(30,42,42,.4)}
+.lrow .larrow{color:rgba(30,42,42,.3);font-size:18px;font-weight:700;transition:transform .14s ease, color .18s}
+.lrow:hover .larrow{transform:translateX(2px);color:var(--brand)}
+
+/* footer */
+.bfoot{margin-top:20px;text-align:center;font-size:11.5px;color:rgba(30,42,42,.45);line-height:1.5}
+.bfoot a{color:var(--brand);text-decoration:none;font-weight:600}
+
+.powered{font-size:11px;letter-spacing:.04em;color:rgba(30,42,42,.4);font-weight:500}
+.powered b{color:var(--teal);font-weight:700}
+
+@media (max-width:430px){
+  body{padding:18px 12px 32px}
+  .bio{padding:26px 18px 22px;border-radius:26px}
+  .bname{font-size:23px}
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Smile Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="stage-label">Patient portal &nbsp;·&nbsp; <a href="../doctor/">Doctor portal →</a> &nbsp;·&nbsp; <a href="../patient/">Patient flow →</a></div>
+
+<!-- PASSWORD GATE (first visit) -->
+<div class="card gate" id="gate" style="display:none">
+  <div class="gate-doc">
+    <span class="gate-av" id="gateAv"></span>
+    <div>
+      <div class="eyebrow">Welcome back</div>
+      <h1 id="gateHead">Set your <em>password</em></h1>
+    </div>
+  </div>
+  <p class="sub">Create a password to access your personal smile consultation, your simulation, and messages with your dentist.</p>
+  <div class="field"><label>Password</label><input id="pw" type="password" placeholder="••••••••" oninput="Portal.validatePw()"></div>
+  <div class="field"><label>Confirm password</label><input id="pw2" type="password" placeholder="••••••••" oninput="Portal.validatePw()"></div>
+  <div class="pwhint" id="pwHint"></div>
+  <button class="cta" id="pwBtn" onclick="Portal.submitPassword()" disabled>Create password &amp; enter</button>
+  <button class="linkbtn" onclick="Portal.skipPassword()">demo: skip →</button>
+</div>
+
+<!-- PORTAL -->
+<main class="portal" id="portal" style="display:none">
+
+  <!-- header -->
+  <header class="phead card">
+    <span class="brandlogo" id="brandLogo"></span>
+    <div class="phmeta">
+      <b id="brandName">Your Smile Studio</b>
+      <span id="greeting">Welcome back</span>
+    </div>
+  </header>
+
+  <!-- VIDEO -->
+  <section class="card sec" id="videoSec">
+    <div class="eyebrow">Your video consultation</div>
+    <h2 id="videoTitle">A personal video, just for you</h2>
+    <div class="player" id="player"></div>
+    <p class="cap" id="videoCap"></p>
+  </section>
+
+  <!-- SIMULATION -->
+  <section class="card sec" id="simSec" style="display:none">
+    <div class="eyebrow">Your smile preview</div>
+    <h2>See your possible <em>new smile</em></h2>
+    <div class="reveal" id="reveal">
+      <canvas id="simAfter" width="360" height="450"></canvas>
+      <div class="beforeWrap" id="beforeWrap"><canvas id="simBefore" width="360" height="450"></canvas></div>
+      <span class="lbl b">Now</span>
+      <span class="lbl a">Preview</span>
+      <div class="handle" id="handle"><div class="grip">⇄</div></div>
+    </div>
+    <p class="disc"><span>ℹ️</span><span>Illustrative preview only. Your actual results depend on a clinical evaluation by your dentist.</span></p>
+  </section>
+
+  <!-- CTAs -->
+  <section class="card sec">
+    <div class="eyebrow">Ready to take the next step?</div>
+    <h2 id="ctaHead">Book your visit</h2>
+    <p class="sub" id="ctaSub">When you're ready, reserve a time with the practice.</p>
+    <button class="cta" id="primaryCta">Book / inquire</button>
+    <div class="links" id="links"></div>
+  </section>
+
+  <!-- SHARE -->
+  <section class="card sec">
+    <div class="eyebrow">Talk it over</div>
+    <h2>Share with your partner</h2>
+    <p class="sub">Send this page to a spouse or partner so you can decide together.</p>
+    <div class="sharebtns">
+      <button class="cta" id="shareBtn" onclick="Portal.share()">🔗 Copy share link</button>
+      <a class="cta ghost" id="mailBtn" href="#">✉️ Email it</a>
+    </div>
+    <div class="confnote" id="shareConf"></div>
+  </section>
+
+  <!-- MESSAGES -->
+  <section class="card sec">
+    <div class="eyebrow">Questions?</div>
+    <h2 id="msgHead">Message your dentist</h2>
+    <div class="thread" id="thread"></div>
+    <div class="composer">
+      <input id="msgInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')Portal.sendMessage()">
+      <button class="send" onclick="Portal.sendMessage()">Send</button>
+    </div>
+  </section>
+
+  <!-- DOCTOR INFO -->
+  <section class="card sec docinfo" id="docInfo">
+    <div class="eyebrow">Your dentist</div>
+    <div class="docrow">
+      <span class="doc-av" id="docAv"></span>
+      <div>
+        <b id="docName"></b>
+        <span class="role" id="docRole"></span>
+      </div>
+    </div>
+    <p class="bio" id="docBio"></p>
+    <div class="contact" id="docContact"></div>
+  </section>
+
+</main>
+
+<script src="../shared/store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

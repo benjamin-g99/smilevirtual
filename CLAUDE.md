@@ -6,17 +6,29 @@ changes don't undo deliberate conversion/closing decisions.
 ## What this is
 
 A static, dependency-free, high-fidelity prototype of the SmileVirtual
-experience — **three surfaces sharing one data loop**:
+experience — **many surfaces sharing one data loop** (`shared/store.js`,
+localStorage). No build step, no framework, no server.
 
-1. `patient/` — mobile capture flow (the original conversion redesign, now with
-   real camera + persistence).
+1. `patient/` — mobile capture flow (real camera + persistence).
 2. `doctor/` — the practice console: a clinical work queue built to **close more
-   business** by compressing time-to-video and turning the video into a closing
-   instrument.
-3. Directory — spec'd in README §3, not yet built.
+   business**. Queue + SLA, the **Consult Studio** recorder, deep **Performance**
+   analytics, and a full **Settings** panel (profile, team+permissions, intake
+   questions, tracking pixels, reviews, landing copy, ad spend, bio links).
+3. `directory/` — simulation-first lead engine (NPI-verified, geo+goal match).
+4. `portal/` — the **patient portal**: watch the video, replay the sim, share,
+   message the doctor, see CTAs (account w/ password).
+5. `site/` — auto-generated, brand-themed standalone landing page (reviews,
+   editable copy).
+6. `link/` — Linktree-style link-in-bio with click tracking; `embed/` —
+   embeddable widgets (`widget.js`) for any external site.
 
-No build step, no framework, no server. Both apps share `shared/store.js`
-(localStorage) so a patient submission shows up in the console.
+`shared/store.js` is the only data API. Key additions beyond CRUD:
+`config()/saveConfig/saveBrand` (config now holds doctor, brand, staff,
+questions, analytics, reviews, site, links, spendBySource), `analytics()`
+(funnel/drop-off, video engagement, conversion + ROAS by source),
+`saveSimTweak`, `addMessage`, `setPassword`, `trackClick/clickStats`,
+`cases/addCase/removeCase`. Seed data is richer (paid bookings, watch %,
+messages) and lives behind `SEEDED_KEY` (bump it to reseed).
 
 ## Architecture
 

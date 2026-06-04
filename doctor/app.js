@@ -20,6 +20,7 @@
   /* ---------- boot ---------- */
   function boot(){
     SmileStore.ensureSeeded();
+    refreshRolePick();
     role = $('#rolePick').value;
     $('#rolePick').addEventListener('change', e=>{ role=e.target.value; render(); });
     $('#resetDemo').addEventListener('click', ()=>{ if(confirm('Reset all demo leads to the seeded set?')){ SmileStore.reset(); render(); } });
@@ -37,14 +38,25 @@
     $$('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
     $('#view-queue').hidden = v!=='queue';
     $('#view-dash').hidden  = v!=='dash';
+    $('#view-settings').hidden = v!=='settings';
     render();
   }
 
   function render(){
     const m = SmileStore.metrics();
     $('#queueBadge').textContent = m.queueSize;
-    if(activeView==='queue') renderQueue(); else renderDash();
+    if(activeView==='queue') renderQueue();
+    else if(activeView==='dash') renderPerf();
+    else if(activeView==='settings') renderSettings();
     if(openLeadId) renderDrawer(openLeadId);  // keep workspace in sync
+  }
+  // current signed-in user + their permission to record consults
+  function currentUser(){ const s=(cfg().staff||[]).find(u=>u.name===role); return s||{name:role,canRecord:true}; }
+  function canRecord(){ return !!currentUser().canRecord; }
+  function refreshRolePick(){
+    const sel=$('#rolePick'); const prev=role||sel.value; const staff=cfg().staff||[];
+    sel.innerHTML=staff.map(u=>`<option value="${esc(u.name)}">${esc(u.name)} (${esc(u.role)})</option>`).join('');
+    if(staff.some(u=>u.name===prev)) sel.value=prev; role=sel.value;
   }
 
   /* ---------- helpers ---------- */
@@ -125,30 +137,162 @@
   }
 
   /* ---------- DASHBOARD ---------- */
-  function renderDash(){
-    const m = SmileStore.metrics();
-    $('#metrics').innerHTML = [
-      ['queue', m.queueSize, 'Awaiting a video'],
-      ['overdue', m.overdue, 'Past 24h SLA', m.overdue>0],
-      ['ttv', m.medianTimeToSendH==null?'—':m.medianTimeToSendH+'h', 'Median time-to-send'],
-      ['sent', m.sent, 'Videos sent'],
-      ['booked', m.booked, 'Booked consults']
-    ].map(([k,v,l,alert])=>`<div class="metric ${alert?'alert':''}"><div class="big">${v}</div><div class="lbl">${l}</div></div>`).join('');
+  function renderPerf(){
+    const m = SmileStore.metrics(), a = SmileStore.analytics(), cv=a.conversion;
+    const money = n => '$'+(n||0).toLocaleString();
+    // headline KPIs
+    const kpis = [
+      ['Median time-to-send', m.medianTimeToSendH==null?'—':m.medianTimeToSendH+'h', m.overdue>0?m.overdue+' overdue':'on pace', m.overdue>0],
+      ['Lead → booked', cv.leadToBooked+'%', a.funnel.find(f=>f.key==='booked').count+' booked'],
+      ['Booked → paid', cv.bookedToPaid+'%', cv.avgTreatment?('avg '+money(cv.avgTreatment)):''],
+      ['Revenue (attributed)', money(cv.revenue), cv.roas!=null?(cv.roas+'× ROAS'):''],
+      ['Video view rate', a.videos.viewRate+'%', a.videos.avgWatchPct+'% avg watched']
+    ];
+    let html = `<div class="metrics">`+kpis.map(([l,v,sub,alert])=>
+      `<div class="metric ${alert?'alert':''}"><div class="big">${v}</div><div class="lbl">${l}</div>${sub?`<div class="msub">${esc(sub)}</div>`:''}</div>`).join('')+`</div>`;
 
-    const rows = SmileStore.funnelBySource();
-    const max = Math.max(1,...rows.map(r=>r.leads));
-    $('#funnel').innerHTML =
-      `<tr><th>Source</th><th class="barcell">Leads</th><th>Sent</th><th>Viewed</th><th>Booked</th><th>Lead→Book</th></tr>`+
-      rows.map(r=>{
-        const conv = r.leads? Math.round(r.booked/r.leads*100):0;
-        return `<tr>
-          <td class="src">${esc(r.source)}</td>
-          <td class="barcell">${r.leads}<div class="fbar"><i style="width:${r.leads/max*100}%;background:var(--teal)"></i></div></td>
-          <td>${r.sent}</td><td>${r.viewed}</td><td>${r.booked}</td>
-          <td class="conv">${conv}%</td>
-        </tr>`;
-      }).join('');
+    // FUNNEL with drop-off
+    const f0 = a.funnel[0].count||1;
+    html += `<div class="panel"><h3>Conversion funnel</h3><p class="muted small">Where people advance — and where you lose them. % is of everyone who started.</p>
+      <div class="funnelchart">`+
+      a.funnel.map((s,i)=>{
+        const w = Math.round(s.count/f0*100);
+        const drop = i>0 && s.dropped>0 ? `<span class="drop">▼ ${s.dropped} dropped (${100-s.stepConv}%)</span>`:'';
+        return `<div class="frow"><div class="flabel">${esc(s.label)}</div>
+          <div class="ftrack"><div class="ffill" style="width:${Math.max(w,3)}%"><span>${s.count}</span></div></div>
+          <div class="fpct">${s.pctOfStart}%</div><div class="fdrop">${drop}</div></div>`;
+      }).join('')+`</div></div>`;
+
+    // ENGAGEMENT
+    const v=a.videos;
+    html += `<div class="grid2">
+      <div class="panel"><h3>Video engagement</h3>
+        <div class="kpis">
+          <div><b>${v.sent}</b><span>videos sent</span></div>
+          <div><b>${v.viewed}</b><span>watched (${v.viewRate}%)</span></div>
+          <div><b>${v.avgWatches}</b><span>avg views / lead</span></div>
+          <div><b>${v.avgWatchPct}%</b><span>avg watched</span></div>
+          <div><b>${v.simUnlockRate}%</b><span>unlocked a preview</span></div>
+        </div>
+        <p class="muted small" style="margin-top:10px">Watch-rate & completion are your strongest leading indicators of a booking — chase the sent-not-viewed segment from the queue.</p>
+      </div>
+      <div class="panel"><h3>Conversion</h3>
+        <div class="kpis">
+          <div><b>${cv.leadToBooked}%</b><span>lead → booked</span></div>
+          <div><b>${cv.bookedToPaid}%</b><span>booked → paid</span></div>
+          <div><b>${money(cv.avgTreatment)}</b><span>avg case value</span></div>
+          <div><b>${money(cv.revenue)}</b><span>revenue</span></div>
+          <div><b>${cv.roas!=null?cv.roas+'×':'—'}</b><span>ROAS</span></div>
+        </div>
+        <p class="muted small" style="margin-top:10px">“Paid” is set when you mark a booked patient attended + treatment value in their consult. <em>(Production: sync from your PMS.)</em></p>
+      </div></div>`;
+
+    // BY SOURCE — full economics
+    html += `<div class="panel"><h3>By ad source — full economics</h3>
+      <p class="muted small">Spend is set in Settings. This is the table that decides where the next dollar goes.</p>
+      <table class="funnel"><tr><th>Source</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Sent</th><th>Viewed</th><th>Booked</th><th>Paid</th><th>Revenue</th><th>CPA</th><th>ROAS</th></tr>`+
+      a.sources.map(r=>`<tr>
+        <td class="src">${esc(r.source)}</td><td>${r.spend?money(r.spend):'—'}</td>
+        <td>${r.leads}</td><td>${r.cpl!=null?money(r.cpl):'—'}</td>
+        <td>${r.sent}</td><td>${r.viewed}</td><td>${r.booked}</td><td>${r.paid}</td>
+        <td class="conv">${money(r.revenue)}</td><td>${r.cpa!=null?money(r.cpa):'—'}</td>
+        <td class="conv">${r.roas!=null?r.roas+'×':'—'}</td></tr>`).join('')+`</table></div>`;
+
+    $('#perf').innerHTML = html;
   }
+
+  /* ---------- SETTINGS ---------- */
+  function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
+  function scard(title, sub, body){ return `<div class="panel sset"><h3>${esc(title)}</h3>${sub?`<p class="muted small">${sub}</p>`:''}<div class="sbody">${body}</div></div>`; }
+  function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="DoctorApp.cfg('${path}',this.value)"></label>`; }
+
+  function renderSettings(){
+    const c=cfg(), clicks=SmileStore.clickStats();
+    const doctor=c.doctor||{}, rev=c.reviews||{}, an=c.analytics||{}, site=c.site||{}, spend=c.spendBySource||{};
+
+    const profile = scard('Practice & doctor', 'Shown across the patient flow, landing page, directory and video pages.',
+      `<div class="srow">${fld('Doctor name','doctor.name',doctor.name)}${fld('Credential','doctor.credential',doctor.credential)}</div>
+       <div class="srow">${fld('Role / specialty','doctor.role',doctor.role)}${fld('NPI','doctor.npi',doctor.npi)}</div>
+       <div class="srow">${fld('Phone','doctor.phone',doctor.phone)}${fld('Email','doctor.email',doctor.email,'email')}</div>
+       <div class="srow">${fld('Address','doctor.address',doctor.address)}${fld('City','doctor.city',doctor.city)}${fld('State','doctor.state',doctor.state)}</div>
+       <label class="sfield"><span>Bio</span><textarea onchange="DoctorApp.cfg('doctor.bio',this.value)">${esc(doctor.bio||'')}</textarea></label>
+       <button class="cta-d ghost-d" onclick="DoctorApp.openBrand()">🎨 Brand & slide theme (logo + colors)</button>`);
+
+    const team = scard('Team & permissions', 'The only permission is whether a member can record & send consults.',
+      `<div class="stafflist">`+(c.staff||[]).map((u,i)=>`
+        <div class="staffrow">
+          <input class="sn" value="${esc(u.name)}" onchange="DoctorApp.staffField(${i},'name',this.value)">
+          <input class="sr" value="${esc(u.role)}" onchange="DoctorApp.staffField(${i},'role',this.value)">
+          <label class="perm"><input type="checkbox" ${u.canRecord?'checked':''} onchange="DoctorApp.staffRec(${i},this.checked)"> can record</label>
+          <button class="xbtn" onclick="DoctorApp.staffDel(${i})">✕</button>
+        </div>`).join('')+`</div>
+       <button class="cta-d ghost-d" onclick="DoctorApp.staffAdd()">+ Add team member</button>`);
+
+    const qs = scard('Intake questions', 'Custom questions shown in the patient flow. Drag-free reorder with the arrows.',
+      `<div class="qlist">`+(c.questions||[]).map((q,i)=>`
+        <div class="qrow">
+          <select onchange="DoctorApp.qField(${i},'type',this.value)">
+            ${['text','choice','select'].map(t=>`<option value="${t}" ${q.type===t?'selected':''}>${t==='text'?'Text':t==='choice'?'Multiple choice':'Dropdown'}</option>`).join('')}
+          </select>
+          <input class="ql" value="${esc(q.label)}" onchange="DoctorApp.qField(${i},'label',this.value)" placeholder="Question text">
+          ${q.type!=='text'?`<input class="qo" value="${esc((q.options||[]).join(', '))}" onchange="DoctorApp.qField(${i},'options',this.value)" placeholder="Options, comma-separated">`:'<span class="qo muted small">free text</span>'}
+          <div class="qbtns"><button class="xbtn" onclick="DoctorApp.qMove(${i},-1)">↑</button><button class="xbtn" onclick="DoctorApp.qMove(${i},1)">↓</button><button class="xbtn" onclick="DoctorApp.qDel(${i})">✕</button></div>
+        </div>`).join('')+`</div>
+       <button class="cta-d ghost-d" onclick="DoctorApp.qAdd()">+ Add question</button>`);
+
+    const tracking = scard('Tracking & analytics', 'Where the conversion pixel fires from the patient flow. (Wire server-side for production.)',
+      `<div class="srow">${fld('Meta Pixel ID','analytics.metaPixelId',an.metaPixelId)}${fld('GA4 Measurement ID','analytics.ga4Id',an.ga4Id)}</div>
+       <div class="srow">${fld('Google Ads ID','analytics.googleAdsId',an.googleAdsId)}${fld('Custom event endpoint','analytics.customEndpoint',an.customEndpoint)}</div>`);
+
+    const reviews = scard('Reviews & ratings', 'Shown on your landing page & directory profile. Paste your public ratings (live Google/Yelp sync needs their API server-side).',
+      `<div class="srow">${fld('Google rating','reviews.googleRating',rev.googleRating,'number')}${fld('Google # reviews','reviews.googleCount',rev.googleCount,'number')}</div>
+       ${fld('Google reviews URL','reviews.googleUrl',rev.googleUrl)}
+       <div class="srow">${fld('Yelp rating','reviews.yelpRating',rev.yelpRating,'number')}${fld('Yelp # reviews','reviews.yelpCount',rev.yelpCount,'number')}</div>
+       ${fld('Yelp URL','reviews.yelpUrl',rev.yelpUrl)}
+       <label class="perm"><input type="checkbox" ${site.showReviews?'checked':''} onchange="DoctorApp.cfg('site.showReviews',this.checked)"> show reviews on landing page</label>`);
+
+    const sitecard = scard('Landing page copy', 'Powers your standalone landing page.',
+      `${fld('Headline','site.headline',site.headline)}
+       <label class="sfield"><span>Subhead</span><textarea onchange="DoctorApp.cfg('site.subhead',this.value)">${esc(site.subhead||'')}</textarea></label>
+       ${fld('Primary CTA text','site.ctaText',site.ctaText)}`);
+
+    const spendCard = scard('Ad spend (for ROAS)', 'Monthly spend per source — drives CPL / CPA / ROAS on the Performance tab.',
+      `<div class="srow">${fld('Meta / $mo','spendBySource.meta',spend.meta,'number')}${fld('Google / $mo','spendBySource.google',spend.google,'number')}${fld('TikTok / $mo','spendBySource.tiktok',spend.tiktok,'number')}</div>`);
+
+    const links = scard('Link-in-bio links', 'Shown on your Linktree-style bio page. Click counts are tracked.',
+      `<div class="linklist">`+(c.links||[]).map((lk,i)=>`
+        <div class="linkrow">
+          <input class="li" value="${esc(lk.icon||'')}" onchange="DoctorApp.linkField(${i},'icon',this.value)" style="width:44px;text-align:center">
+          <input value="${esc(lk.label)}" onchange="DoctorApp.linkField(${i},'label',this.value)" placeholder="Label">
+          <input value="${esc(lk.url)}" onchange="DoctorApp.linkField(${i},'url',this.value)" placeholder="https://">
+          <span class="clicks" title="clicks">${clicks[lk.id]||0} clicks</span>
+          <button class="xbtn" onclick="DoctorApp.linkDel(${i})">✕</button>
+        </div>`).join('')+`</div>
+       <button class="cta-d ghost-d" onclick="DoctorApp.linkAdd()">+ Add link</button>`);
+
+    const pages = scard('Your public pages', 'Auto-generated from this config. Open in a new tab.',
+      `<div class="pagelinks">
+        <a class="cta-d" href="../site/" target="_blank">🌐 Landing page</a>
+        <a class="cta-d ghost-d" href="../link/" target="_blank">🔗 Link-in-bio</a>
+        <a class="cta-d ghost-d" href="../embed/" target="_blank">🧩 Embeddable widgets</a>
+        <a class="cta-d ghost-d" href="../directory/" target="_blank">📍 Directory profile</a>
+       </div>`);
+
+    $('#settings').innerHTML = `<div class="setgrid">${profile}${team}${qs}${reviews}${sitecard}${tracking}${spendCard}${links}${pages}</div>`;
+  }
+
+  /* settings mutations */
+  function staffAdd(){ const c=cfg(); c.staff=(c.staff||[]).concat([{id:'u_'+Math.random().toString(36).slice(2,6),name:'New member',role:'Front desk',canRecord:false}]); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
+  function staffDel(i){ const c=cfg(); c.staff.splice(i,1); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
+  function staffRec(i,on){ const c=cfg(); c.staff[i].canRecord=on; SmileStore.saveConfig(c); }
+  function staffField(i,f,v){ const c=cfg(); c.staff[i][f]=v; SmileStore.saveConfig(c); refreshRolePick(); }
+  function qAdd(){ const c=cfg(); c.questions=(c.questions||[]).concat([{type:'text',label:'New question'}]); SmileStore.saveConfig(c); renderSettings(); }
+  function qDel(i){ const c=cfg(); c.questions.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
+  function qMove(i,d){ const c=cfg(); const j=i+d; if(j<0||j>=c.questions.length) return; const a=c.questions; [a[i],a[j]]=[a[j],a[i]]; SmileStore.saveConfig(c); renderSettings(); }
+  function qField(i,f,v){ const c=cfg(); if(f==='options'){ c.questions[i].options=v.split(',').map(s=>s.trim()).filter(Boolean); } else { c.questions[i][f]=v; } SmileStore.saveConfig(c); if(f==='type') renderSettings(); }
+  function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); SmileStore.saveConfig(c); renderSettings(); }
+  function linkDel(i){ const c=cfg(); c.links.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
+  function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; SmileStore.saveConfig(c); }
 
   /* ---------- DRAWER / CONSULT WORKSPACE ---------- */
   function openLead(id){ openLeadId=id; SmileStore.setStatus && maybeMarkReview(id); renderDrawer(id); $('#drawer').classList.add('show'); $('#scrim').classList.add('show'); }
@@ -177,10 +321,12 @@
       </div>
       <div class="dr-cta">
         ${ !hasRec
-          ? `<button class="cta-d big-cta" onclick="DoctorApp.openRecorder('${id}')">🎬 Open Consult Studio</button>`
+          ? ( canRecord()
+              ? `<button class="cta-d big-cta" onclick="DoctorApp.openRecorder('${id}')">🎬 Open Consult Studio</button>`
+              : `<div class="cta-sent">Drafted & ready to film.</div><button class="cta-d" onclick="DoctorApp.assign('${id}','${esc((cfg().staff.find(u=>u.canRecord)||{}).name||'')}')">Assign to a recorder →</button>` )
           : !sent
             ? `<button class="cta-d big-cta coral-d" onclick="DoctorApp.sendVideo('${id}')">📤 Send video consult</button>
-               <button class="cta-d ghost-d" onclick="DoctorApp.openRecorder('${id}')">⟳ Re-record</button>
+               ${canRecord()?`<button class="cta-d ghost-d" onclick="DoctorApp.openRecorder('${id}')">⟳ Re-record</button>`:''}
                <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview</button>`
             : `<div class="cta-sent">✓ Sent ${timeAgo(l.video.sentAt)} <span class="statp" data-s="${l.status}">${l.statusLabel}</span></div>
                <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview email</button>` }
@@ -196,6 +342,19 @@
             ${photoTile(l.photos&&l.photos[1],'Close-up','🦷')}
           </div>
         </div>
+
+        ${ l.sim && l.sim.enabled ? `<div class="card">
+          <div class="ct">Smile simulation <span class="muted small" style="text-transform:none;letter-spacing:0;font-weight:600">tweak it before you record</span></div>
+          <div class="drsim" id="drsim">
+            <canvas id="drsimAfter" width="340" height="260"></canvas>
+            <div class="drsim-bw" id="drsimBW"><canvas id="drsimBefore" width="340" height="260"></canvas></div>
+            <span class="drlab b">Now</span><span class="drlab a">Preview</span>
+            <div class="drsim-h" id="drsimH"><div class="g">⇄</div></div>
+          </div>
+          <div class="rng"><span>Whiteness</span><input type="range" min="0.55" max="1" step="0.01" value="${(l.sim.tweak||{}).white??0.9}" oninput="DoctorApp.simPreview('white',this.value)" onchange="DoctorApp.simTweak('${id}','white',this.value)"></div>
+          <div class="rng"><span>Keep it natural</span><input type="range" min="0" max="1" step="0.05" value="${(l.sim.tweak||{}).natural??0.2}" oninput="DoctorApp.simPreview('natural',this.value)" onchange="DoctorApp.simTweak('${id}','natural',this.value)"></div>
+          <div class="hint" style="font-size:11.5px;color:rgba(30,42,42,.5);margin-top:6px">If the automated preview looks off, adjust it here — it carries into the Consult Studio preview slide and the patient's portal.</div>
+        </div>` : '' }
 
         <div class="card">
           <div class="ct">Goals & intake</div>
@@ -231,14 +390,19 @@
             ${!c.email ? `<div class="muted small">No contact captured — abandoned before the ask. Retarget via the originating ad audience.</div>`:''}
           </div>
           ${l.booking?`<div class="note" style="margin-top:12px">📅 ${esc(l.booking.apptTime||'Booked')}</div>`:''}
+          ${ l.status==='booked' ? `<div class="paidbox">
+            <label class="perm"><input type="checkbox" ${l.booking&&l.booking.attended?'checked':''} onchange="DoctorApp.markAttended('${id}',this.checked)"> attended consult</label>
+            <label class="perm"><input type="checkbox" ${l.booking&&l.booking.paid?'checked':''} onchange="DoctorApp.markPaid('${id}',this.checked)"> started treatment / paid</label>
+            <label class="sfield" style="margin-top:6px"><span>Treatment value ($)</span><input type="number" value="${(l.booking&&l.booking.treatmentValue)||''}" onchange="DoctorApp.setTreatmentValue('${id}',this.value)" placeholder="e.g. 9500"></label>
+            <div class="hint" style="font-size:11px;color:rgba(30,42,42,.5)">Feeds revenue & ROAS on the Performance tab. (Production: sync from your PMS.)</div>
+          </div>`:'' }
         </div>
 
         <div class="card">
           <div class="ct">Assignment</div>
           <select class="assignsel" onchange="DoctorApp.assign('${id}', this.value)">
             <option value="">— Unassigned —</option>
-            <option ${l.assignedTo==='Dr. Brian Harris'?'selected':''}>Dr. Brian Harris</option>
-            ${(cfg().coordinators||[]).map(co=>`<option ${l.assignedTo===co?'selected':''}>${esc(co)}</option>`).join('')}
+            ${(cfg().staff||[]).map(u=>`<option value="${esc(u.name)}" ${l.assignedTo===u.name?'selected':''}>${esc(u.name)} · ${esc(u.role)}</option>`).join('')}
           </select>
         </div>
 
@@ -260,7 +424,41 @@
         </div>
 
       </div>`;
+    if(l.sim && l.sim.enabled) initDrawerSim(l);
   }
+
+  /* drawer smile-sim: before/after with reveal + live tweak ----------- */
+  let drTweak = { white:0.9, natural:0.2 };
+  function initDrawerSim(l){
+    drTweak = Object.assign({ white:0.9, natural:0.2 }, l.sim.tweak||{});
+    drawDrawerSmile($('#drsimBefore'), false);
+    drawDrawerSmile($('#drsimAfter'), true);
+    const bw=$('#drsimBW'); if(bw){ bw.style.width='50%'; } const h=$('#drsimH'); if(h) h.style.left='50%';
+    const wrap=$('#drsim'); if(!wrap) return;
+    const before=$('#drsimBefore'); if(before && wrap.clientWidth) before.style.width=wrap.clientWidth+'px'; // keep aligned while clipped
+    let drag=false;
+    const mv=x=>{ const r=wrap.getBoundingClientRect(); let p=Math.max(4,Math.min(96,(x-r.left)/r.width*100)); $('#drsimBW').style.width=p+'%'; $('#drsimH').style.left=p+'%'; };
+    wrap.onmousedown=e=>{drag=true;mv(e.clientX);}; window.addEventListener('mousemove',e=>{if(drag)mv(e.clientX);}); window.addEventListener('mouseup',()=>drag=false);
+    wrap.ontouchstart=e=>{drag=true;mv(e.touches[0].clientX);}; wrap.ontouchmove=e=>{if(drag)mv(e.touches[0].clientX);}; window.addEventListener('touchend',()=>drag=false);
+  }
+  function drawDrawerSmile(cv, after){ if(!cv) return; const c=cv.getContext('2d'),W=cv.width,H=cv.height; c.clearRect(0,0,W,H);
+    const sk=c.createLinearGradient(0,0,0,H); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(0,0,W,H);
+    const cx=W/2,cy=H*0.52,mw=W*0.6,mh=mw*0.42;
+    c.fillStyle='#B65C5C'; c.beginPath(); c.ellipse(cx,cy,mw/2+13,mh/2+13,0,0,7); c.fill();
+    c.fillStyle='#5E2230'; c.beginPath(); c.ellipse(cx,cy,mw/2,mh/2,0,0,7); c.fill();
+    c.save(); c.beginPath(); c.ellipse(cx,cy-mh*0.05,mw/2-5,mh/2-3,0,0,7); c.clip();
+    const col = after ? lerpHex('#E2D4AE','#FFFFFF', drTweak.white) : '#E2D4AE';
+    const n=8,gap=3,tw=(mw-12)/n,x0=cx-(mw-12)/2,ty=cy-mh/2+3;
+    for(let i=0;i<n;i++){let px=x0+i*tw,ph=mh-12,py=ty;c.fillStyle=col;
+      if(!after){ if(i===3)py+=6; if(i===4)px+=4; }
+      else { if(drTweak.natural>0.5&&i===4)px+=2*drTweak.natural; if(drTweak.natural>0.3&&i===3)py+=4*drTweak.natural; }
+      c.fillRect(px,py,tw-gap,ph);} c.restore();
+  }
+  function simPreview(prop,v){ drTweak[prop]=+v; drawDrawerSmile($('#drsimAfter'), true); }
+  function simTweak(id,prop,v){ SmileStore.saveSimTweak(id,{[prop]:+v}); }
+  function markAttended(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{attended:on})}); }
+  function markPaid(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{paid:on})}); }
+  function setTreatmentValue(id,v){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{treatmentValue:+v||0})}); }
 
   function statusFlowHtml(l){
     const steps=[['new','New'],['in_review','In review'],['recorded','Recorded'],['sent','Sent'],['viewed','Viewed'],['booked','Booked']];
@@ -375,7 +573,7 @@
     slides.push({kind:'photos', heading:'Your photos', imgs:imgs.filter(Boolean), note:noteFor('concern','recommendation')});
     if(l.sim&&l.sim.enabled) slides.push({kind:'preview', heading:'Your smile preview',
       caption:'Illustrative preview — your real plan is what we’re discussing now.', note:noteFor('preview'),
-      sim:{ white:0.9, natural:0.2 } });   // doctor-tweakable if the auto-sim looks off
+      sim: Object.assign({ white:0.9, natural:0.2 }, l.sim.tweak||{}) });   // shares the doctor's tweak from the drawer
     const plan=planFor(l);
     slides.push({kind:'plan', heading:'Your recommended plan', lines:plan.lines.slice(), financing:plan.financing,
       cta:'Next step: book your visit →', note:noteFor('timeline','next step','close')});
@@ -562,7 +760,7 @@
     html+=`<div class="editrow"><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(-1)">↑ Up</button><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(1)">↓ Down</button>${studio.slides.length>1?`<button class="cta-d delbtn" onclick="DoctorApp.removeSlide(${studio.idx})">Delete</button>`:''}</div>`;
     $('#tabEdit').innerHTML=html;
   }
-  function editSim(prop,val){ const s=studio.slides[studio.idx]; if(!s) return; if(!s.sim) s.sim={white:0.9,natural:0.2}; s.sim[prop]=+val; }
+  function editSim(prop,val){ const s=studio.slides[studio.idx]; if(!s) return; if(!s.sim) s.sim={white:0.9,natural:0.2}; s.sim[prop]=+val; if(studio.id) SmileStore.saveSimTweak(studio.id,{[prop]:+val}); }
   function edit(prop,val){
     const s=studio.slides[studio.idx]; if(!s) return;
     if(prop==='_lines'){ s.lines=val.split('\n').filter(x=>x.trim()).map(line=>{const [k,v]=line.split('|');return {k:(k||'').trim(),v:(v||'').trim()};}); }
@@ -814,6 +1012,8 @@
   global.DoctorApp = { openLead, closeDrawer, assign, toggleTag, addNote, copyScript, sendVideo, simulate, nudge,
     openRecorder, toggleRecord, useRecording, closeRecorder, previewEmail, closeEmail, bookFromEmail,
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
-    setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand };
+    setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand,
+    cfg: cfgSet, staffAdd, staffDel, staffRec, staffField, qAdd, qDel, qMove, qField, linkAdd, linkDel, linkField,
+    simPreview, simTweak, markAttended, markPaid, setTreatmentValue };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

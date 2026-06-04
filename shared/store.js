@@ -14,7 +14,8 @@
   const KEY = 'smilevirtual.leads.v1';
   const CFG_KEY = 'smilevirtual.config.v1';
   const CASES_KEY = 'smilevirtual.cases.v1';
-  const SEEDED_KEY = 'smilevirtual.seeded.v1';
+  const CLICKS_KEY = 'smilevirtual.clicks.v1';
+  const SEEDED_KEY = 'smilevirtual.seeded.v3';
 
   /* ---- SLA + status model -------------------------------------------------
      The portal's north-star is MEDIAN TIME-TO-SEND. Target SLA below. */
@@ -162,6 +163,20 @@
     saveVideo(id, video) {
       return this.patch(id, { video: Object.assign({ recordedAt: now() }, video), status: 'recorded' });
     },
+    // doctor-tuned smile-sim parameters (shared by drawer, studio, email, patient portal)
+    saveSimTweak(id, tweak) {
+      const lead = read().find(l => l.id === id); if (!lead) return null;
+      const sim = Object.assign({}, lead.sim, { tweak: Object.assign({ white: 0.9, natural: 0.2 }, (lead.sim || {}).tweak, tweak) });
+      return this.patch(id, { sim });
+    },
+    // messages between patient and practice (both portals read/write here)
+    addMessage(id, from, body) {
+      const lead = read().find(l => l.id === id); if (!lead) return null;
+      const messages = (lead.messages || []).concat([{ from, body, at: now() }]);
+      return this.patch(id, { messages });
+    },
+    // patient account (created at lead capture; password set later from the portal)
+    setPassword(id /*, pw */) { return this.patch(id, { account: Object.assign({}, (this.get(id) || {}).account, { passwordSet: true }) }); },
 
     /* ---- analytics: the marketing loop -------------------------------- */
     funnelBySource() {
@@ -195,6 +210,89 @@
       };
     },
 
+    /* ---- deep analytics: the full lead-capture workflow ---------------- */
+    analytics() {
+      const leads = read();
+      const cfg = this.config();
+      const has = (l, f) => f(l);
+      // top-of-funnel → bottom, with where people drop
+      const reached = (steps) => leads.filter(l => steps.includes(l.furthestStep)).length;
+      const started = leads.length;
+      const gotGoals = leads.filter(l => (l.goals && l.goals.length) || l.goalText || ['photos','sim','questions','contact','complete'].includes(l.furthestStep)).length;
+      const gotPhotos = leads.filter(l => (l.photos || []).filter(Boolean).length >= 1).length;
+      const becameLead = leads.filter(l => l.contact && l.contact.email).length;
+      const sent = leads.filter(l => l.video && l.video.sentAt).length;
+      const viewed = leads.filter(l => l.video && l.video.viewedAt).length;
+      const booked = leads.filter(l => l.status === 'booked' || (l.booking && l.booking.bookedAt)).length;
+      const attended = leads.filter(l => l.booking && l.booking.attended).length;
+      const paid = leads.filter(l => l.booking && l.booking.paid).length;
+      const funnel = [
+        { key:'started',  label:'Started flow',     count:started },
+        { key:'goals',    label:'Picked goals',     count:gotGoals },
+        { key:'photos',   label:'Took photos',      count:gotPhotos },
+        { key:'lead',     label:'Became a lead',    count:becameLead },
+        { key:'sent',     label:'Video sent',       count:sent },
+        { key:'viewed',   label:'Watched video',    count:viewed },
+        { key:'booked',   label:'Booked visit',     count:booked },
+        { key:'attended', label:'Attended',         count:attended },
+        { key:'paid',     label:'Paid / started tx',count:paid }
+      ].map((s, i, arr) => {
+        const prev = i ? arr[i-1].count : s.count;
+        s.pctOfStart = started ? Math.round(s.count/started*100) : 0;
+        s.stepConv = prev ? Math.round(s.count/prev*100) : 100;
+        s.dropped = Math.max(0, prev - s.count);
+        return s;
+      });
+      // engagement on the video closing-page
+      const viewedLeads = leads.filter(l => l.video && l.video.viewedAt);
+      const avg = (a) => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+      const videos = {
+        sent, viewed,
+        viewRate: sent ? Math.round(viewed/sent*100) : 0,
+        avgWatches: Math.round(avg(viewedLeads.map(l => l.video.watchCount || 1)) * 10) / 10,
+        avgWatchPct: Math.round(avg(viewedLeads.map(l => l.video.watchPct || 0)) * 100),
+        simUnlockRate: started ? Math.round(leads.filter(l => l.sim && l.sim.enabled).length / started * 100) : 0
+      };
+      // revenue + ROAS by source
+      const spend = cfg.spendBySource || {};
+      const bySrc = {};
+      leads.forEach(l => {
+        const src = (l.source && l.source.utm_source) || 'direct';
+        const r = bySrc[src] || (bySrc[src] = { source:src, leads:0, sent:0, viewed:0, booked:0, paid:0, revenue:0, spend:spend[src]||0 });
+        r.leads++;
+        if (l.video && l.video.sentAt) r.sent++;
+        if (l.video && l.video.viewedAt) r.viewed++;
+        if (l.status === 'booked' || (l.booking && l.booking.bookedAt)) r.booked++;
+        if (l.booking && l.booking.paid) { r.paid++; r.revenue += (l.booking.treatmentValue || 0); }
+      });
+      const sources = Object.values(bySrc).map(r => {
+        r.cpl = r.spend && r.leads ? Math.round(r.spend / r.leads) : null;
+        r.cpa = r.spend && r.paid ? Math.round(r.spend / r.paid) : null;
+        r.roas = r.spend ? Math.round(r.revenue / r.spend * 10) / 10 : null;
+        r.bookRate = r.leads ? Math.round(r.booked / r.leads * 100) : 0;
+        return r;
+      }).sort((a,b)=> b.revenue - a.revenue || b.leads - a.leads);
+      const revenue = sources.reduce((s,r)=>s+r.revenue,0);
+      const totalSpend = sources.reduce((s,r)=>s+(r.spend||0),0);
+      return {
+        funnel, videos, sources,
+        conversion: {
+          leadToBooked: becameLead ? Math.round(booked/becameLead*100) : 0,
+          bookedToPaid: booked ? Math.round(paid/booked*100) : 0,
+          revenue, spend: totalSpend, roas: totalSpend ? Math.round(revenue/totalSpend*10)/10 : null,
+          avgTreatment: paid ? Math.round(revenue/paid) : 0
+        }
+      };
+    },
+
+    /* ---- link-in-bio + click tracking --------------------------------- */
+    trackClick(linkId) {
+      let m = {}; try { m = JSON.parse(localStorage.getItem(CLICKS_KEY)) || {}; } catch (e) {}
+      m[linkId] = (m[linkId] || 0) + 1;
+      localStorage.setItem(CLICKS_KEY, JSON.stringify(m)); notify();
+    },
+    clickStats() { try { return JSON.parse(localStorage.getItem(CLICKS_KEY)) || {}; } catch (e) { return {}; } },
+
     reset() { localStorage.removeItem(KEY); localStorage.removeItem(SEEDED_KEY); this.seed(); notify(); },
 
     /* ---- demo seed ----------------------------------------------------- */
@@ -209,14 +307,28 @@
 
   /* ---- default practice config ------------------------------------------ */
   const DEFAULT_CONFIG = {
-    doctor: { name: 'Dr. Brian Harris', role: 'Cosmetic Dentist · DMD', npi: '' },
+    doctor: { name: 'Dr. Brian Harris', role: 'Cosmetic Dentist · DMD', npi: '', credential: 'DMD',
+      photo: null, bio: 'Smile-design focused practice. 15+ years, 10,000+ smiles. Known for natural-looking veneers and same-week video consultations.',
+      phone: '(949) 555-0100', email: 'hello@harrissmile.com', address: '16100 Sand Canyon Ave', city: 'Irvine', state: 'CA' },
     brand: { name: 'Harris Smile Studio', logo: null, primary: '#0E3F3C', accent: '#E8C07D' },
-    coordinators: ['Maya R.'],
+    staff: [
+      { id: 'u_doc',  name: 'Dr. Brian Harris', role: 'Dentist',    canRecord: true },
+      { id: 'u_maya', name: 'Maya R.',          role: 'Front desk', canRecord: false }
+    ],
     questions: [
       { type: 'text',   label: 'Is there anything specific bothering you?' },
       { type: 'choice', label: 'Have you had orthodontic treatment before?', options: ['No, never', 'Yes, in the past', 'Currently in treatment'] },
       { type: 'select', label: 'How soon are you hoping to start?', options: ['As soon as possible', 'Within 1–3 months', '3–6 months', 'Just exploring for now'] }
-    ]
+    ],
+    analytics: { metaPixelId: '', ga4Id: '', googleAdsId: '', customEndpoint: '' },
+    reviews: { googleRating: 4.9, googleCount: 1284, googleUrl: '', yelpRating: 0, yelpCount: 0, yelpUrl: '' },
+    site: { headline: 'See your dream smile — free, from your phone', subhead: 'Get an instant preview and a personal video consultation from Dr. Harris. No office visit to begin.', ctaText: 'Start my free smile preview', showReviews: true },
+    links: [
+      { id: 'lk_book', label: 'Book an appointment', url: 'https://example.com/book', icon: '📅' },
+      { id: 'lk_site', label: 'Our website', url: 'https://example.com', icon: '🌐' },
+      { id: 'lk_ig',   label: 'Follow us on Instagram', url: 'https://instagram.com', icon: '📸' }
+    ],
+    spendBySource: { meta: 1200, google: 900, tiktok: 300 }   // monthly ad spend (demo) — drives ROAS/CPA
   };
 
   /* ---- seed leads: a realistic, alive queue ------------------------------ */
@@ -281,18 +393,53 @@
         contact: { firstName: 'Sam', email: 'sam.r@email.com', phone: '(657) 555-0121' },
         source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
         assignedTo: 'Dr. Brian Harris', notes: [], tags: [], booking: null,
-        video: { recordedAt: hoursAgo(50), sentAt: hoursAgo(48), viewedAt: hoursAgo(30), durationSec: 118, script: '' } },
+        account: { passwordSet: true },
+        messages: [{ from: 'patient', body: 'Loved the video! Roughly how long does Invisalign take in my case?', at: hoursAgo(28) }],
+        video: { recordedAt: hoursAgo(50), sentAt: hoursAgo(48), viewedAt: hoursAgo(30), durationSec: 118, watchCount: 2, watchPct: 0.78, script: '' } },
 
-      // BOOKED — closed business, ties revenue back to source
+      // BOOKED + PAID — closed business, ties revenue back to source
       { id: uid(), createdAt: hoursAgo(120), updatedAt: hoursAgo(60), status: 'booked',
         furthestStep: 'complete', goals: ['Full makeover'], goalText: '',
-        photos: ['demo:f', 'demo:c'], sim: { enabled: true, unlockedAt: hoursAgo(120) },
+        photos: ['demo:f', 'demo:c'], sim: { enabled: true, unlockedAt: hoursAgo(120), tweak: { white: 0.85, natural: 0.3 } },
         questionAnswers: { 2: 'As soon as possible' },
         contact: { firstName: 'Alex', email: 'alex.j@email.com', phone: '(949) 555-0188' },
         source: { utm_source: 'google', campaign: 'veneers-brand', content: 'search' },
         assignedTo: 'Dr. Brian Harris', notes: [], tags: ['veneers'],
-        booking: { bookedAt: hoursAgo(60), apptTime: 'Consult booked for next Tue 2:00pm' },
-        video: { recordedAt: hoursAgo(100), sentAt: hoursAgo(98), viewedAt: hoursAgo(70), durationSec: 134, script: '' } }
+        account: { passwordSet: true },
+        messages: [{ from: 'patient', body: 'Booked! Can my husband join the consult?', at: hoursAgo(64) }, { from: 'doctor', body: 'Absolutely — bring him along. See you Tuesday!', at: hoursAgo(62) }],
+        booking: { bookedAt: hoursAgo(60), apptTime: 'Consult booked for next Tue 2:00pm', attended: true, paid: true, treatmentValue: 11500 },
+        video: { recordedAt: hoursAgo(100), sentAt: hoursAgo(98), viewedAt: hoursAgo(70), durationSec: 134, watchCount: 4, watchPct: 0.92, script: '' } },
+
+      // BOOKED + PAID via meta — gives the meta source revenue/ROAS
+      { id: uid(), createdAt: hoursAgo(160), updatedAt: hoursAgo(90), status: 'booked',
+        furthestStep: 'complete', goals: ['Veneers', 'Whiter teeth'], goalText: '',
+        photos: ['demo:f', 'demo:c'], sim: { enabled: true, unlockedAt: hoursAgo(160) },
+        questionAnswers: { 2: 'Within 1–3 months' },
+        contact: { firstName: 'Bianca', email: 'bianca.l@email.com', phone: '(949) 555-0155' },
+        source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
+        assignedTo: 'Dr. Brian Harris', notes: [], tags: ['veneers'], account: { passwordSet: false },
+        booking: { bookedAt: hoursAgo(90), apptTime: 'Booked — last Thursday', attended: true, paid: true, treatmentValue: 8200 },
+        video: { recordedAt: hoursAgo(150), sentAt: hoursAgo(148), viewedAt: hoursAgo(120), durationSec: 102, watchCount: 3, watchPct: 0.88, script: '' } },
+
+      // SENT, not yet viewed (meta)
+      { id: uid(), createdAt: hoursAgo(50), updatedAt: hoursAgo(20), status: 'sent',
+        furthestStep: 'complete', goals: ['Whiter teeth'], goalText: '',
+        photos: ['demo:f', 'demo:c'], sim: { enabled: false },
+        questionAnswers: { 2: '3–6 months' },
+        contact: { firstName: 'Theo', email: 'theo.n@email.com', phone: '(562) 555-0144' },
+        source: { utm_source: 'meta', campaign: 'smile-spring', content: 'carousel-b' },
+        assignedTo: 'Dr. Brian Harris', notes: [], tags: [], booking: null,
+        video: { recordedAt: hoursAgo(21), sentAt: hoursAgo(20), durationSec: 88, watchCount: 0, watchPct: 0, script: '' } },
+
+      // Dropped at WELCOME (bounced) — top-of-funnel leakage
+      { id: uid(), createdAt: hoursAgo(11), updatedAt: hoursAgo(11), status: 'new',
+        furthestStep: 'welcome', goals: [], goalText: '', photos: [], sim: { enabled: false },
+        questionAnswers: {}, contact: {}, source: { utm_source: 'tiktok', campaign: 'ugc-test', content: 'creator-2' },
+        assignedTo: null, notes: [], tags: ['abandoned'], video: null, booking: null },
+      { id: uid(), createdAt: hoursAgo(15), updatedAt: hoursAgo(15), status: 'new',
+        furthestStep: 'goals', goals: ['Whiter teeth'], goalText: '', photos: [], sim: { enabled: false },
+        questionAnswers: {}, contact: {}, source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
+        assignedTo: null, notes: [], tags: ['abandoned'], video: null, booking: null }
     ];
   }
 
