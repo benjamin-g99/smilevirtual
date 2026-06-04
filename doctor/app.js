@@ -310,7 +310,14 @@
 
   /* ---------- SETTINGS ---------- */
   function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
-  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & analytics':'📈','Reviews & ratings':'⭐','Landing page copy':'🌐','Marketing spend':'💸','Link-in-bio links':'🔗','Your public pages':'🚀'};
+  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & attribution':'📈','Reviews & ratings':'⭐','Landing page':'🌐','Marketing spend':'💸','Link-in-bio':'🔗','Directory profile':'📍','Embeddable widgets':'🧩'};
+  function pubUrl(path){ try{ return new URL(path, location.href).href; }catch(e){ return path; } }
+  function shareRow(path, label){ const url=pubUrl(path);
+    return `<div class="sharerow">
+      <a class="cta-d" href="${esc(path)}" target="_blank">👁 Preview</a>
+      <input class="shareurl" readonly value="${esc(url)}" onclick="this.select()" title="Public URL">
+      <button class="cta-d ghost-d" onclick="DoctorApp.share('${esc(path)}','${esc(label)}')">🔗 Share</button>
+    </div>`; }
   function scard(title, sub, body){ const ic=SET_ICONS[title]||'⚙️';
     return `<div class="panel sset"><div class="seth"><span class="setic">${ic}</span><div class="seth-t"><h3>${esc(title)}</h3>${sub?`<p class="muted small">${sub}</p>`:''}</div></div><div class="sbody">${body}</div></div>`; }
   function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="DoctorApp.cfg('${path}',this.value)"></label>`; }
@@ -366,10 +373,11 @@
        ${fld('Yelp URL','reviews.yelpUrl',rev.yelpUrl)}
        <label class="perm"><input type="checkbox" ${site.showReviews?'checked':''} onchange="DoctorApp.cfg('site.showReviews',this.checked)"> show reviews on landing page</label>`);
 
-    const sitecard = scard('Landing page copy', 'Powers your standalone landing page.',
+    const sitecard = scard('Landing page', 'Your standalone, brand-themed practice site. Edit the copy, then preview or share the public link.',
       `${fld('Headline','site.headline',site.headline)}
        <label class="sfield"><span>Subhead</span><textarea onchange="DoctorApp.cfg('site.subhead',this.value)">${esc(site.subhead||'')}</textarea></label>
-       ${fld('Primary CTA text','site.ctaText',site.ctaText)}`);
+       ${fld('Primary CTA text','site.ctaText',site.ctaText)}
+       ${shareRow('../site/','My practice landing page')}`);
 
     const channels = SmileStore.channelsInUse();
     const spendRows = spendList().map((r,i)=>`
@@ -388,8 +396,10 @@
        <div class="spendlist">${spendRows||'<div class="hint">No spend lines yet — add one.</div>'}</div>
        <button class="cta-d ghost-d" onclick="DoctorApp.spendAdd()">+ Add spend line</button>`);
 
-    const links = scard('Link-in-bio links', 'Shown on your Linktree-style bio page. Click counts are tracked.',
-      `<div class="linklist">`+(c.links||[]).map((lk,i)=>`
+    const links = scard('Link-in-bio', 'Your Linktree-style bio page for Instagram/TikTok. Reorder-free list below; preview or share the public link. Click counts are tracked.',
+      `${shareRow('../link/','My SmileVirtual bio link')}
+       <div class="submini" style="margin-top:4px">Links</div>
+       <div class="linklist">`+(c.links||[]).map((lk,i)=>`
         <div class="linkrow">
           <input class="li" value="${esc(lk.icon||'')}" onchange="DoctorApp.linkField(${i},'icon',this.value)" style="width:44px;text-align:center">
           <input value="${esc(lk.label)}" onchange="DoctorApp.linkField(${i},'label',this.value)" placeholder="Label">
@@ -399,24 +409,29 @@
         </div>`).join('')+`</div>
        <button class="cta-d ghost-d" onclick="DoctorApp.linkAdd()">+ Add link</button>`);
 
-    const pages = scard('Your public pages', 'Auto-generated from this config. Open in a new tab.',
-      `<div class="pagelinks">
-        <a class="cta-d" href="../site/" target="_blank">🌐 Landing page</a>
-        <a class="cta-d ghost-d" href="../link/" target="_blank">🔗 Link-in-bio</a>
-        <a class="cta-d ghost-d" href="../embed/" target="_blank">🧩 Embeddable widgets</a>
-        <a class="cta-d ghost-d" href="../directory/" target="_blank">📍 Directory profile</a>
-       </div>`);
+    const dirId = (c.doctor && c.doctor.directoryId) || 'harris';
+    const directoryCard = scard('Directory profile', 'Your public listing in the SmileVirtual doctor directory — NPI-verified, with reviews, response time and before/afters. Patients find you by goal + location.',
+      `<div class="dirsum">
+         <div><b>${esc((c.doctor||{}).name||'Dr.')}</b> · ${esc((c.doctor||{}).city||'')}, ${esc((c.doctor||{}).state||'')}</div>
+         <div class="muted small">★ ${esc((c.reviews||{}).googleRating||'—')} · ${esc((c.reviews||{}).googleCount||0)} reviews · ✓ NPI-verified</div>
+       </div>
+       ${shareRow('../directory/?doctor='+encodeURIComponent(dirId),'My SmileVirtual directory profile')}`);
+
+    const widgetsCard = scard('Embeddable widgets', 'Drop the “free smile preview” CTA on any website — an inline card, a floating button, or a review badge. Copy-paste, no dependencies.',
+      `${shareRow('../embed/','SmileVirtual widgets')}
+       <div class="hint" style="margin-top:8px">Open the gallery to grab each widget's copy-paste <code>&lt;script&gt;</code> snippet and set your brand color + target URL.</div>`);
 
     const sections=[
       ['profile','Practice & doctor','🦷',profile],
       ['team','Team & permissions','👥',team],
       ['questions','Intake questions','❓',qs],
       ['reviews','Reviews & ratings','⭐',reviews],
-      ['site','Landing page copy','🌐',sitecard],
-      ['tracking','Tracking & attribution','📈',tracking],
-      ['spend','Marketing spend','💸',spendCard],
+      ['site','Landing page','🌐',sitecard],
       ['links','Link-in-bio','🔗',links],
-      ['pages','Public pages','🚀',pages]
+      ['directory','Directory profile','📍',directoryCard],
+      ['widgets','Embeddable widgets','🧩',widgetsCard],
+      ['tracking','Tracking & attribution','📈',tracking],
+      ['spend','Marketing spend','💸',spendCard]
     ];
     if(!sections.some(s=>s[0]===settingsSection)) settingsSection='profile';
     const active=sections.find(s=>s[0]===settingsSection);
@@ -426,6 +441,12 @@
     </div>`;
   }
   function setSection(k){ settingsSection=k; renderSettings(); }
+  function share(path, label){
+    const url=pubUrl(path);
+    if(navigator.share){ navigator.share({title:label, url}).catch(()=>{}); return; }
+    if(navigator.clipboard){ navigator.clipboard.writeText(url); }
+    toast('Public link copied to clipboard');
+  }
 
   /* settings mutations */
   function staffAdd(){ const c=cfg(); c.staff=(c.staff||[]).concat([{id:'u_'+Math.random().toString(36).slice(2,6),name:'New member',role:'Front desk',canRecord:false}]); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
@@ -1199,7 +1220,7 @@
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
     setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand,
     cfg: cfgSet, staffAdd, staffDel, staffRec, staffField, qAdd, qDel, qMove, qField, linkAdd, linkDel, linkField,
-    aliasField, aliasDel, aliasAdd, setSection, spendAdd, spendDel, spendField,
+    aliasField, aliasDel, aliasAdd, setSection, share, spendAdd, spendDel, spendField,
     simPreview, simTweak, markAttended, markPaid, setTreatmentValue, setConversionNotes, setStatusManual, setPerfRange };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

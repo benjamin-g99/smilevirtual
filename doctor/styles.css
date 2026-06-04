@@ -550,3 +550,13 @@ h3{font-family:var(--display);font-weight:500;font-size:18px;color:var(--teal-de
 .spendrow input:focus,.spendrow select:focus{outline:none;border-color:var(--teal)}
 .spendrow .amt{text-align:right}
 @media(max-width:560px){ .spendhead{display:none} .spendrow{grid-template-columns:1fr 1fr;gap:6px} .spendrow .xbtn{grid-column:2;justify-self:end} }
+
+/* ---- settings: preview + share row ---- */
+.sharerow{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.sharerow .cta-d{flex:none;text-decoration:none}
+.shareurl{flex:1;min-width:140px;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:rgba(30,42,42,.65);background:var(--cream)}
+.shareurl:focus{outline:none;border-color:var(--teal)}
+.dirsum{background:var(--cream);border-radius:12px;padding:12px 14px;margin-bottom:4px}
+.dirsum b{font-weight:700}
+@media(max-width:560px){ .sharerow .shareurl{order:3;width:100%;flex:1 0 100%} }

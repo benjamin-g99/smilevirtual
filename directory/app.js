@@ -231,5 +231,10 @@
   }
 
   global.Dir = { openProfile, closeProfile };
-  document.addEventListener('DOMContentLoaded', ()=>{ if(global.SmileStore) SmileStore.ensureSeeded(); bind(); render(); });
+  document.addEventListener('DOMContentLoaded', ()=>{
+    if(global.SmileStore) SmileStore.ensureSeeded(); bind(); render();
+    // deep link: /directory/?doctor=<id> opens that doctor's public profile directly
+    const dq=new URLSearchParams(location.search).get('doctor');
+    if(dq) setTimeout(()=>openProfile(dq), 60);
+  });
 })(window);
