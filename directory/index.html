@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmileVirtual — Find a Doctor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="../"><span class="logo">◗</span> SmileVirtual</a>
+  <nav class="topnav">
+    <a href="../patient/">Patient flow</a>
+    <a href="../doctor/">Practice console</a>
+    <a class="cur" href="./">Find a doctor</a>
+  </nav>
+</header>
+
+<!-- HERO — the simulation-first flip -->
+<section class="hero">
+  <div class="hero-in">
+    <div class="eyebrow">Find your SmileVirtual doctor</div>
+    <h1>See your new smile <em>free</em> — then meet the doctor who can make it&nbsp;real.</h1>
+    <p>Start with an instant AI smile preview, then get matched to a verified local dentist who records you a personal video consultation. No office visit to begin.</p>
+    <div class="hero-cta">
+      <a class="cta-d big" href="../patient/?from=directory">✨ Start with a free preview</a>
+      <button class="ghost-d cta-d big" onclick="document.getElementById('results').scrollIntoView({behavior:'smooth'})">Browse doctors near me ↓</button>
+    </div>
+    <div class="hero-trust">
+      <span>✓ NPI-verified providers</span><span>✓ Real before/afters</span><span>✓ Response-time backed</span>
+    </div>
+  </div>
+</section>
+
+<!-- SEARCH + FILTERS -->
+<section class="searchbar">
+  <div class="sb-in">
+    <div class="sb-field loc">
+      <span class="ic">📍</span>
+      <input id="locInput" placeholder="Your location" value="Trabuco Canyon, CA">
+      <button class="useloc" id="useLoc" title="Use my location">Use my location</button>
+    </div>
+    <div class="sb-field">
+      <span class="ic">🔍</span>
+      <input id="nameInput" placeholder="Doctor or clinic name">
+    </div>
+    <div class="sb-field dist">
+      <label>Within <b id="distVal">50</b> mi</label>
+      <input type="range" id="distRange" min="5" max="100" step="5" value="50">
+    </div>
+    <div class="sb-field">
+      <label>Sort</label>
+      <select id="sortSel">
+        <option value="distance">Nearest</option>
+        <option value="rating">Top rated</option>
+        <option value="response">Fastest response</option>
+      </select>
+    </div>
+  </div>
+  <div class="goalfilters" id="goalFilters"></div>
+</section>
+
+<!-- RESULTS + MAP -->
+<main class="layout" id="results">
+  <div class="resultcol">
+    <div class="reshead"><h2 id="resCount">—</h2><p class="muted" id="resSub"></p></div>
+    <div class="doclist" id="docList"></div>
+  </div>
+  <aside class="mapcol">
+    <div class="map" id="map"><div class="maplabel">Verified doctors near you</div></div>
+    <div class="howloop">
+      <b>How SmileVirtual works</b>
+      <ol>
+        <li>Get your free AI smile preview</li>
+        <li>We match you to verified local doctors</li>
+        <li>Your chosen doctor sends a personal video</li>
+        <li>Book a visit — only if you love the plan</li>
+      </ol>
+    </div>
+  </aside>
+</main>
+
+<!-- DOCTOR PROFILE MODAL -->
+<div class="modal" id="profModal">
+  <div class="modal-card" id="profCard"><!-- filled by JS --></div>
+</div>
+
+<script src="../shared/store.js"></script>
+<script src="../shared/directory-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
