@@ -107,7 +107,7 @@
 
   // Build a real, copy-pasteable <script> snippet string (NOT executed).
   function snippet(attrs) {
-    var lines = ['<script src="https://YOURDOMAIN.com/embed/widget.js"'];
+    var lines = ['<scr' + 'ipt src="https://YOURDOMAIN.com/embed/widget.js"'];
     attrs.forEach(function (pair) {
       lines.push('        ' + pair[0] + '="' + pair[1] + '"');
     });

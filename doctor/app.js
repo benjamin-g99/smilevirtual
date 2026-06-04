@@ -310,7 +310,7 @@
 
   /* ---------- SETTINGS ---------- */
   function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
-  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & attribution':'📈','Reviews & ratings':'⭐','Landing page':'🌐','Marketing spend':'💸','Link-in-bio':'🔗','Directory profile':'📍','Embeddable widgets':'🧩'};
+  const SET_ICONS={'Practice & doctor':'🦷','Brand & theme':'🎨','Team & permissions':'👥','Intake questions':'❓','Tracking & attribution':'📈','Reviews & ratings':'⭐','Landing page':'🌐','Marketing spend':'💸','Link-in-bio':'🔗','Directory profile':'📍','Embeddable widgets':'🧩'};
   function pubUrl(path){ try{ return new URL(path, location.href).href; }catch(e){ return path; } }
   function shareRow(path, label){ const url=pubUrl(path);
     return `<div class="sharerow">
@@ -331,8 +331,10 @@
        <div class="srow">${fld('Role / specialty','doctor.role',doctor.role)}${fld('NPI','doctor.npi',doctor.npi)}</div>
        <div class="srow">${fld('Phone','doctor.phone',doctor.phone)}${fld('Email','doctor.email',doctor.email,'email')}</div>
        <div class="srow">${fld('Address','doctor.address',doctor.address)}${fld('City','doctor.city',doctor.city)}${fld('State','doctor.state',doctor.state)}</div>
-       <label class="sfield"><span>Bio</span><textarea onchange="DoctorApp.cfg('doctor.bio',this.value)">${esc(doctor.bio||'')}</textarea></label>
-       <button class="cta-d ghost-d" onclick="DoctorApp.openBrand()">🎨 Brand & slide theme (logo + colors)</button>`);
+       <label class="sfield"><span>Bio</span><textarea onchange="DoctorApp.cfg('doctor.bio',this.value)">${esc(doctor.bio||'')}</textarea></label>`);
+
+    const brandCard = scard('Brand & theme', 'Your logo, colors and doctor photo — applied to consult slides, the landing page, widgets and your bio link.',
+      brandBodyHtml());
 
     const team = scard('Team & permissions', 'The only permission is whether a member can record & send consults.',
       `<div class="stafflist">`+(c.staff||[]).map((u,i)=>`
@@ -417,12 +419,37 @@
        </div>
        ${shareRow('../directory/?doctor='+encodeURIComponent(dirId),'My SmileVirtual directory profile')}`);
 
-    const widgetsCard = scard('Embeddable widgets', 'Drop the “free smile preview” CTA on any website — an inline card, a floating button, or a review badge. Copy-paste, no dependencies.',
-      `${shareRow('../embed/','SmileVirtual widgets')}
-       <div class="hint" style="margin-top:8px">Open the gallery to grab each widget's copy-paste <code>&lt;script&gt;</code> snippet and set your brand color + target URL.</div>`);
+    // self-contained widget previews + copy-paste snippets (no external dependency)
+    const wb=c.widgets||{}, br=c.brand||{};
+    const wAccent=br.primary||'#0E5450';
+    const wHead=wb.headline||'See your new smile — free';
+    const wCta=wb.cta||'✨ Free Smile Preview';
+    const wTarget=wb.target||pubUrl('../patient/');
+    const wRating=(rev.googleRating!=null?rev.googleRating:4.9), wCount=(rev.googleCount!=null?rev.googleCount:1284);
+    const wName=br.name||'our patients';
+    const widgetSrc=pubUrl('../embed/widget.js');
+    const wsnip=(attrs)=>{ const lines=['<script src="'+widgetSrc+'"']; attrs.forEach(p=>lines.push('        '+p[0]+'="'+p[1]+'"')); return lines.join('\n')+'></'+'script>'; };
+    const snipInline=wsnip([['data-widget','inline'],['data-target',wTarget],['data-accent',wAccent],['data-headline',wHead],['data-cta',wCta],['data-rating',String(wRating)],['data-count',String(wCount)]]);
+    const snipFloat=wsnip([['data-widget','floating'],['data-target',wTarget],['data-accent',wAccent],['data-cta',wCta]]);
+    const snipBadge=wsnip([['data-widget','badge'],['data-accent',wAccent],['data-rating',String(wRating)],['data-count',String(wCount)],['data-name',wName],['data-review-url',(rev.googleUrl||wTarget)]]);
+    const pvInline=`<div class="wpv-card" style="--wa:${esc(wAccent)}"><div class="wpv-eb">Free Smile Preview</div><div class="wpv-h">${esc(wHead)}</div><div class="wpv-sub">An instant preview + a personal video from the doctor.</div><div class="wpv-stars">★★★★★ <b>${esc(wRating)}</b> <span>· ${esc(wCount)} reviews</span></div><div class="wpv-btn">${esc(wCta)}</div></div>`;
+    const pvFloat=`<div class="wpv-floatbox"><span class="wpv-pill" style="--wa:${esc(wAccent)}">${esc(wCta)}</span></div>`;
+    const pvBadge=`<div class="wpv-badge"><span class="wpv-g" style="--wa:${esc(wAccent)}">G</span><span class="wpv-bm"><span class="wpv-brow"><b>${esc(wRating)}</b> <span class="wpv-bstars">★★★★★</span></span><span class="wpv-bsub">${esc(wCount)} Google reviews · ${esc(wName)}</span></span></div>`;
+    const wblock=(title,desc,preview,snip,key)=>`<div class="wblock">
+        <div class="wb-head"><b>${title}</b><span class="muted small">${desc}</span><button class="cta-d ghost-d wbcopy" onclick="DoctorApp.copyEl('wsnip-${key}')">Copy code</button></div>
+        <div class="wb-cols"><div class="wb-preview">${preview}</div><pre class="wsnip"><code id="wsnip-${key}">${esc(snip)}</code></pre></div>
+      </div>`;
+    const widgetsCard = scard('Embeddable widgets', 'Live previews themed to your brand. Customize, then copy the &lt;script&gt; to paste on any site — no dependencies.',
+      `<label class="sfield"><span>Target URL (your patient flow)</span><input value="${esc(wTarget)}" onchange="DoctorApp.widgetField('target',this.value)"></label>
+       <div class="srow"><label class="sfield"><span>Headline (inline card)</span><input value="${esc(wHead)}" onchange="DoctorApp.widgetField('headline',this.value)"></label><label class="sfield"><span>Button text</span><input value="${esc(wCta)}" onchange="DoctorApp.widgetField('cta',this.value)"></label></div>
+       <div class="muted small" style="margin:2px 0 12px">Colors come from <b>Brand &amp; theme</b>; rating from <b>Reviews</b>.</div>
+       ${wblock('Inline card','for service/blog pages',pvInline,snipInline,'i')}
+       ${wblock('Floating button','sticks to the corner',pvFloat,snipFloat,'f')}
+       ${wblock('Review badge','social proof anywhere',pvBadge,snipBadge,'b')}`);
 
     const sections=[
       ['profile','Practice & doctor','🦷',profile],
+      ['brand','Brand & theme','🎨',brandCard],
       ['team','Team & permissions','👥',team],
       ['questions','Intake questions','❓',qs],
       ['reviews','Reviews & ratings','⭐',reviews],
@@ -439,6 +466,7 @@
       <nav class="setnav">${sections.map(([k,l,ic])=>`<button class="setnav-i ${k===settingsSection?'on':''}" onclick="DoctorApp.setSection('${k}')"><span class="ni">${ic}</span><span>${l}</span></button>`).join('')}</nav>
       <div class="setpane">${active[3]}</div>
     </div>`;
+    if(settingsSection==='brand'){ loadBrandLogo(); wireBrandForm(); drawBrandPrev(); }
   }
   function setSection(k){ settingsSection=k; renderSettings(); }
   function share(path, label){
@@ -468,6 +496,11 @@
   function spendDel(i){ const l=spendList(); l.splice(i,1); spendSave(l); renderSettings(); }
   function spendField(i,f,v){ const l=spendList(); if(!l[i]) return; l[i][f]= f==='amount'? (+v||0) : v; spendSave(l); }
   function aliasField(k,v){ const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); }
+  function widgetField(k,v){ const c=cfg(); c.widgets=Object.assign({},c.widgets); c.widgets[k]=v; SmileStore.saveConfig(c); renderSettings(); }
+  function copyEl(id){ const el=document.getElementById(id); if(!el) return; const t=el.textContent;
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).catch(()=>{}); }
+    else { const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
+    toast('Embed code copied'); }
   function aliasDel(k){ const c=cfg(); if(c.sourceAliases) delete c.sourceAliases[k]; SmileStore.saveConfig(c); renderSettings(); }
   function aliasAdd(){ const k=($('#aliasKey').value||'').trim().toLowerCase(), v=($('#aliasVal').value||'').trim(); if(!k||!v) return; const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); renderSettings(); }
 
@@ -1056,37 +1089,40 @@
       <div class="fld"><label>Practice name</label><input type="text" value="${esc(B.name)}" disabled></div>
       <button class="cta-d" style="width:100%;justify-content:center" onclick="DoctorApp.openBrand()">🎨 Edit brand & theme</button>`;
   }
-  function brandFormHtml(){
+  // the brand form body (shared by the modal AND the Settings > Brand & theme section)
+  function brandBodyHtml(){
     const B=brand();
-    return `<h3 style="font-family:var(--display);font-weight:500;font-size:22px;color:var(--teal-deep);margin-bottom:4px">Brand & slide theme</h3>
-      <p class="muted small" style="margin-bottom:18px">Set once — applies to every Consult Studio slide.</p>
-      <label class="logo-drop" for="logoUp"><div class="lp" id="logoPrev">${B.logo?`<img src="${B.logo}">`:'<span style="font-size:22px">🦷</span>'}</div>
-        <div><b style="font-size:13.5px">Practice logo</b><div class="hint">PNG/SVG with transparency works best. Shown top-right on slides.</div></div>
+    return `<label class="logo-drop" for="logoUp"><div class="lp" id="logoPrev">${B.logo?`<img src="${B.logo}">`:'<span style="font-size:22px">🦷</span>'}</div>
+        <div><b style="font-size:13.5px">Practice logo</b><div class="hint">PNG/SVG with transparency works best. Shown on slides, landing page & bio.</div></div>
         <input type="file" id="logoUp" accept="image/*" hidden></label>
       <label class="logo-drop" for="docUp"><div class="lp" id="docPrev" style="border-radius:50%">${(cfg().doctor||{}).photo?`<img src="${cfg().doctor.photo}">`:'<span style="font-size:22px">👤</span>'}</div>
         <div><b style="font-size:13.5px">Doctor profile photo</b><div class="hint">Shown (with an audio pulse) when the camera is off in the studio.</div></div>
         <input type="file" id="docUp" accept="image/*" hidden></label>
       <div class="swatchrow">
-        <div class="swatch"><label>Slide color</label><input type="color" id="cPrimary" value="${B.primary}"></div>
+        <div class="swatch"><label>Primary color</label><input type="color" id="cPrimary" value="${B.primary}"></div>
         <div class="swatch"><label>Accent color</label><input type="color" id="cAccent" value="${B.accent}"></div>
       </div>
       <div class="fld"><label>Practice name</label><input type="text" id="bName" value="${esc(B.name)}"></div>
-      <div class="brand-prev"><canvas id="brandPrev" width="420" height="236"></canvas></div>
-      <button class="cta-d" style="width:100%;justify-content:center" onclick="DoctorApp.closeBrand()">Done</button>`;
+      <div class="brand-prev"><canvas id="brandPrev" width="420" height="236"></canvas></div>`;
   }
-  function openBrand(){
-    loadBrandLogo();
-    $('#brandForm').innerHTML=brandFormHtml();
-    $('#cPrimary').oninput=e=>{ SmileStore.saveBrand({primary:e.target.value}); drawBrandPrev(); refreshBrand(); };
-    $('#cAccent').oninput=e=>{ SmileStore.saveBrand({accent:e.target.value}); drawBrandPrev(); refreshBrand(); };
+  function brandFormHtml(){
+    return `<h3 style="font-family:var(--display);font-weight:500;font-size:22px;color:var(--teal-deep);margin-bottom:4px">Brand &amp; theme</h3>
+      <p class="muted small" style="margin-bottom:18px">Set once — applies to consult slides, landing page, widgets & bio.</p>`
+      + brandBodyHtml()
+      + `<button class="cta-d" style="width:100%;justify-content:center;margin-top:14px" onclick="DoctorApp.closeBrand()">Done</button>`;
+  }
+  // wire the brand inputs (works wherever the form is rendered — modal or settings)
+  function wireBrandForm(){
+    const p=$('#cPrimary'); if(!p) return;
+    p.oninput=e=>{ SmileStore.saveBrand({primary:e.target.value}); drawBrandPrev(); };
+    $('#cAccent').oninput=e=>{ SmileStore.saveBrand({accent:e.target.value}); drawBrandPrev(); };
     $('#bName').oninput=e=>{ SmileStore.saveBrand({name:e.target.value}); drawBrandPrev(); };
     $('#logoUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
       const logo=downscalePng(img,240); SmileStore.saveBrand({logo}); $('#logoPrev').innerHTML=`<img src="${logo}">`; loadBrandLogo(); drawBrandPrev(); };
     $('#docUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
       const photo=downscale(img,300); const c=cfg(); c.doctor=Object.assign({},c.doctor,{photo}); SmileStore.saveConfig(c); $('#docPrev').innerHTML=`<img src="${photo}">`; loadDocPhoto(); };
-    $('#brandModal').classList.add('show'); drawBrandPrev();
   }
-  function refreshBrand(){ renderBrandTab(); }
+  function openBrand(){ loadBrandLogo(); $('#brandForm').innerHTML=brandFormHtml(); wireBrandForm(); $('#brandModal').classList.add('show'); drawBrandPrev(); }
   function closeBrand(){ $('#brandModal').classList.remove('show'); renderBrandTab(); }
   function downscalePng(img,max){ const r=Math.min(1,max/Math.max(img.width,img.height)); const w=Math.round(img.width*r),h=Math.round(img.height*r);
     const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); return c.toDataURL('image/png'); }
@@ -1220,7 +1256,7 @@
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
     setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand,
     cfg: cfgSet, staffAdd, staffDel, staffRec, staffField, qAdd, qDel, qMove, qField, linkAdd, linkDel, linkField,
-    aliasField, aliasDel, aliasAdd, setSection, share, spendAdd, spendDel, spendField,
+    aliasField, aliasDel, aliasAdd, setSection, share, spendAdd, spendDel, spendField, widgetField, copyEl,
     simPreview, simTweak, markAttended, markPaid, setTreatmentValue, setConversionNotes, setStatusManual, setPerfRange };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

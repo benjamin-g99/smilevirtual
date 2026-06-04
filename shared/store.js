@@ -376,7 +376,8 @@
       { id: 'lk_site', label: 'Our website', url: 'https://example.com', icon: '🌐' },
       { id: 'lk_ig',   label: 'Follow us on Instagram', url: 'https://instagram.com', icon: '📸' }
     ],
-    spendBySource: { google: 900, facebook: 700, instagram: 500, tiktok: 300 }   // monthly spend per PAID channel (demo) — drives ROAS/CPA
+    spendBySource: { google: 900, facebook: 700, instagram: 500, tiktok: 300 },   // monthly spend per PAID channel (demo) — drives ROAS/CPA
+    widgets: { target: '', headline: 'See your new smile — free', cta: '✨ Free Smile Preview' }
   };
 
   /* ---- seed leads: a realistic, alive queue ------------------------------ */
