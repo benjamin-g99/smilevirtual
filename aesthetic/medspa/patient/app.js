@@ -1,8 +1,8 @@
 /* Aesthetic Virtual — Med Spa concern-led patient flow (instant AI plan, no video) */
 const S = window.MedSpaStore; S.ensureSeeded(); const CFG = S.config();
 const $ = id => document.getElementById(id);
-const sel = new Set(); let leadId=null, timeline='', currentKey='welcome';
-const flow=['welcome','concerns','plan','contact','confirm'];
+const sel = new Set(), areaSel = new Set(); let leadId=null, timeline='', currentKey='welcome';
+const flow=['welcome','concerns','areas','plan','contact','confirm'];
 const SCREENS={}; document.querySelectorAll('.screen').forEach(s=>{ if(s.dataset.key) SCREENS[s.dataset.key]=s; });
 const m=n=>'$'+(n||0).toLocaleString();
 
@@ -25,10 +25,28 @@ function goalText(){ return $('goalText').value.trim(); }
 $('goalText').addEventListener('input',updateCta);
 function updateCta(){ $('concernCta').disabled = sel.size===0 && !goalText(); persist({concerns:[...sel], goalText:goalText()}); }
 
+/* areas step — per concern, with live per-area estimates */
+function estLabel(a){ const v = a.price ? S.areaPrice(a) : a.qty*S.priceOf(a.tx); return '~$'+v.toLocaleString(); }
+function renderAreaGroups(){
+  const groups=[...sel].map(cid=>{ const c=S.concernById(cid); const areas=S.areasByConcern(cid); if(!areas.length) return '';
+    return `<div class="eyebrow" style="margin-top:18px;color:var(--plum)">${c.icon} ${c.label}</div>
+      <div class="chips">${areas.map(a=>`<div class="chip ${areaSel.has(a.id)?'on':''}" data-area="${a.id}"><span>${a.label}</span><span class="aest" style="margin-left:7px;font-size:11px;opacity:.7">${estLabel(a)}</span></div>`).join('')}</div>`;
+  }).join('');
+  $('areaGroups').innerHTML = groups || '<p class="sub">Pick a concern first.</p>';
+  // sensible default: primary area of each concern pre-selected (patient can change)
+  [...sel].forEach(cid=>{ const first=S.areasByConcern(cid)[0]; if(first && ![...areaSel].some(id=>S.areaById(id)&&S.areaById(id).concern===cid)){ areaSel.add(first.id); } });
+  $('areaGroups').querySelectorAll('.chip').forEach(ch=>ch.classList.toggle('on',areaSel.has(ch.dataset.area)));
+  updateAreaCta();
+}
+$('areaGroups').addEventListener('click',e=>{ const ch=e.target.closest('.chip'); if(!ch)return; const id=ch.dataset.area;
+  if(areaSel.has(id)){areaSel.delete(id);ch.classList.remove('on');}else{areaSel.add(id);ch.classList.add('on');} updateAreaCta(); });
+function updateAreaCta(){ $('areaCta').disabled = areaSel.size===0; persist({areas:[...areaSel]}); }
+
 /* nav */
 function show(key){ const order=[...flow], ti=order.indexOf(key);
   Object.entries(SCREENS).forEach(([k,el])=>{ el.classList.remove('active','left'); if(k===key)el.classList.add('active'); else{const ki=order.indexOf(k); if(ki>-1&&ki<ti)el.classList.add('left');} });
   currentKey=key;
+  if(key==='areas') renderAreaGroups();
   if(key==='plan') renderPlan();
   if(key==='confirm') fireConfetti();
   const i=flow.indexOf(key);
@@ -43,7 +61,7 @@ function goBack(){ const i=flow.indexOf(currentKey); if(i>0) show(flow[i-1]); }
 
 /* instant plan render (the reward) */
 function renderPlan(){
-  const plan=S.recommend([...sel]); const C=CFG;
+  const plan = areaSel.size ? S.planFromAreas([...areaSel]) : S.recommend([...sel]); const C=CFG;
   let h=`<div class="planbox"><div class="planhd"><span>Your treatment plan</span><span class="ai">✨ AI-built</span></div>`;
   h+=plan.lines.map(l=>`<div class="plan-l"><span>${l.label} <span class="q">× ${l.qty} ${l.unit}</span></span><b>${m(l.total)}</b></div>`).join('')
     || `<div class="plan-l"><span>A custom plan</span><b>at your visit</b></div>`;
@@ -66,6 +84,6 @@ function submitForm(){ const name=$('fname').value.trim(); $('confName').textCon
 function fireConfetti(){ const box=$('confetti'); box.innerHTML=''; const cols=[CFG.brand.primary,CFG.brand.accent,'#C2A269']; for(let i=0;i<24;i++){const c=document.createElement('i');c.style.left=Math.random()*100+'%';c.style.background=cols[i%cols.length];c.style.animation=`fall ${1.6+Math.random()*1.2}s ${Math.random()*.5}s ease-in forwards`;box.appendChild(c);} }
 const kf=document.createElement('style'); kf.textContent='@keyframes fall{0%{opacity:0;transform:translateY(0) rotate(0)}10%{opacity:1}100%{opacity:0;transform:translateY(640px) rotate(540deg)}}'; document.head.appendChild(kf);
 
-function restart(){ sel.clear(); leadId=null; timeline=''; document.querySelectorAll('.chip.on,.qchip.on').forEach(c=>c.classList.remove('on')); $('goalText').value=''; $('concernCta').disabled=true; ['fname','email','phone'].forEach(id=>$(id).value=''); $('submitCta').disabled=true; const n=$('devnote'); n.classList.remove('fired'); $('devbody').innerHTML='<span class="muted">// waiting…</span>'; show('welcome'); }
+function restart(){ sel.clear(); areaSel.clear(); leadId=null; timeline=''; document.querySelectorAll('.chip.on,.qchip.on').forEach(c=>c.classList.remove('on')); $('goalText').value=''; $('concernCta').disabled=true; ['fname','email','phone'].forEach(id=>$(id).value=''); $('submitCta').disabled=true; const n=$('devnote'); n.classList.remove('fired'); $('devbody').innerHTML='<span class="muted">// waiting…</span>'; show('welcome'); }
 
 window.next=next; window.goBack=goBack; window.validateForm=validateForm; window.submitForm=submitForm; window.restart=restart;

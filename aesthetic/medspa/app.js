@@ -27,8 +27,9 @@
     $('planModal').addEventListener('click', e=>{ if(e.target.id==='planModal') closePlan(); });
     S.onChange(render); render();
   }
-  function setView(v){ activeView=v; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v)); $('view-queue').hidden=v!=='queue'; $('view-perf').hidden=v!=='perf'; render(); }
-  function render(){ if(activeView==='queue') renderQueue(); else renderPerf(); if(openId) renderDrawer(openId); }
+  let settingsSection='menu';
+  function setView(v){ activeView=v; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v)); $('view-queue').hidden=v!=='queue'; $('view-perf').hidden=v!=='perf'; $('view-settings').hidden=v!=='settings'; render(); }
+  function render(){ if(activeView==='queue') renderQueue(); else if(activeView==='perf') renderPerf(); else if(activeView==='settings') renderSettings(); if(openId) renderDrawer(openId); }
 
   /* ---- queue ---- */
   const ORDER={new:0,plan_ready:0,sent:1,booked:2};
@@ -145,6 +146,39 @@
     $('perf').innerHTML=html;
   }
 
-  global.MS={ open, closeDrawer, qty, price, remove, add, discount, membership, regenerate, approve, simulate, member, value, preview, book, closePlan, setView };
+  /* ---- Settings: practice menu & pricing (directional accuracy) ---- */
+  const SET_ICON={menu:'💉',plan:'⚙️',spa:'🏛️'};
+  function cfgSet(path,val){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){o[p[i]]=o[p[i]]||{};o=o[p[i]];} o[p[p.length-1]]=val; S.saveConfig(c); }
+  function cfgNum(path,val){ cfgSet(path,+val||0); }
+  function txPrice(id,val){ const c=cfg(); c.treatmentPrices=Object.assign({},c.treatmentPrices); c.treatmentPrices[id]=+val||0; S.saveConfig(c); }
+  function aPrice(id,val){ const c=cfg(); c.areaPrices=Object.assign({},c.areaPrices); c.areaPrices[id]=+val||0; S.saveConfig(c); }
+  function setSection(k){ settingsSection=k; renderSettings(); }
+  function scard(icon,title,sub,body){ return `<div class="panel sset"><div class="seth"><span class="setic">${icon}</span><div><h3>${title}</h3>${sub?`<p class="muted small">${sub}</p>`:''}</div></div><div class="sbody">${body}</div></div>`; }
+  function sfield(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="MS.${type==='number'?'cfgNum':'cfg'}('${path}',this.value)"></label>`; }
+  function renderSettings(){
+    const c=cfg(), tx=S.TREATMENTS, mem=c.membership||{}, spa=c.spa||{}, b=c.brand||{};
+    const uw=u=>({units:'unit',syringes:'syringe',vials:'vial',sessions:'session',set:'set',areas:'area'}[u]||u);
+    const menuRows=Object.keys(tx).map(id=>{ const t=tx[id];
+      if(t.perArea){ return `<div class="pricegrp"><div class="pglabel">${esc(t.label)} — price per area</div>`+S.AREAS.filter(a=>a.tx===id).map(a=>`<div class="pricerow"><span>${esc(a.label)}</span><span class="pin">$<input type="number" value="${S.areaPrice(a)}" onchange="MS.aPrice('${a.id}',this.value)"></span></div>`).join('')+`</div>`; }
+      return `<div class="pricerow"><span>${esc(t.label)}</span><span class="pin">$<input type="number" value="${S.priceOf(id)}" onchange="MS.txPrice('${id}',this.value)"><em>/${uw(t.unit)}</em></span></div>`;
+    }).join('');
+    const menu=scard(SET_ICON.menu,'Treatment menu & pricing','Set <b>your</b> prices — every patient estimate uses them. Defaults shown; tune to your spa.', menuRows);
+    const plan=scard(SET_ICON.plan,'Membership & automation',null,
+      sfield('Membership name','membership.name',mem.name)+
+      `<div class="srow">${sfield('Membership $/mo','membership.priceMo',mem.priceMo,'number')}${sfield('Auto-send plans under ($)','autoApproveUnder',c.autoApproveUnder,'number')}</div>
+       <div class="hint">Plans under the threshold can skip manual review and send instantly — the volume lever.</div>`);
+    const spaCard=scard(SET_ICON.spa,'Spa & brand',null,
+      `<div class="srow">${sfield('Spa name','spa.name',spa.name)}${sfield('Tagline','spa.tagline',spa.tagline)}</div>
+       <div class="srow">${sfield('Rating','spa.rating',spa.rating,'number')}${sfield('# reviews','spa.reviews',spa.reviews,'number')}${sfield('Phone','spa.phone',spa.phone)}</div>
+       ${sfield('Coordinator (signs plans)','spa.booker',spa.booker)}
+       <div class="srow"><label class="sfield"><span>Primary</span><input type="color" value="${b.primary}" onchange="MS.cfg('brand.primary',this.value)"></label><label class="sfield"><span>Accent</span><input type="color" value="${b.accent}" onchange="MS.cfg('brand.accent',this.value)"></label></div>`);
+    const sections=[['menu','Treatment menu & pricing',menu],['plan','Membership & automation',plan],['spa','Spa & brand',spaCard]];
+    if(!sections.some(s=>s[0]===settingsSection)) settingsSection='menu';
+    const active=sections.find(s=>s[0]===settingsSection);
+    $('settings').innerHTML=`<div class="setlayout"><nav class="setnav">${sections.map(([k,l])=>`<button class="setnav-i ${k===settingsSection?'on':''}" onclick="MS.setSection('${k}')"><span class="ni">${SET_ICON[k]}</span><span>${l}</span></button>`).join('')}</nav><div class="setpane">${active[2]}</div></div>`;
+  }
+
+  global.MS={ open, closeDrawer, qty, price, remove, add, discount, membership, regenerate, approve, simulate, member, value, preview, book, closePlan, setView,
+    cfg:cfgSet, cfgNum, txPrice, aPrice, setSection };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);
