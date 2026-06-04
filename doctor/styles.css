@@ -594,3 +594,12 @@ h3{font-family:var(--display);font-weight:500;font-size:18px;color:var(--teal-de
 .wpv-brow{display:flex;align-items:center;gap:6px;font-size:14px}
 .wpv-bstars{color:var(--gold);font-size:12px}
 .wpv-bsub{font-size:11px;color:rgba(30,42,42,.55);font-weight:600}
+
+/* ---- performance sub-tabs ---- */
+.perfsub{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:0}
+.psub{background:transparent;border:none;border-bottom:2.5px solid transparent;font-family:var(--body);
+  font-weight:700;font-size:13.5px;padding:10px 14px;cursor:pointer;color:rgba(30,42,42,.5);transition:.15s;margin-bottom:-1px}
+.psub:hover{color:var(--teal-deep)}
+.psub.on{color:var(--teal-deep);border-bottom-color:var(--teal)}
+.ffill.alt{background:linear-gradient(90deg,var(--gold),#b88a2e)}
+.flabel .prim{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#B6442A;background:var(--coral-soft);padding:2px 6px;border-radius:6px;margin-left:7px}

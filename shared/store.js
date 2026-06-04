@@ -15,7 +15,7 @@
   const CFG_KEY = 'smilevirtual.config.v1';
   const CASES_KEY = 'smilevirtual.cases.v1';
   const CLICKS_KEY = 'smilevirtual.clicks.v1';
-  const SEEDED_KEY = 'smilevirtual.seeded.v4';
+  const SEEDED_KEY = 'smilevirtual.seeded.v5';
 
   /* ---- SLA + status model -------------------------------------------------
      The portal's north-star is MEDIAN TIME-TO-SEND. Target SLA below. */
@@ -336,12 +336,13 @@
     },
     clickStats() { try { return JSON.parse(localStorage.getItem(CLICKS_KEY)) || {}; } catch (e) { return {}; } },
 
-    reset() { localStorage.removeItem(KEY); localStorage.removeItem(SEEDED_KEY); this.seed(); notify(); },
+    reset() { [KEY, SEEDED_KEY, CLICKS_KEY].forEach(k => localStorage.removeItem(k)); this.seed(); notify(); },
 
     /* ---- demo seed ----------------------------------------------------- */
     seed(force) {
       if (!force && localStorage.getItem(SEEDED_KEY)) return;
       localStorage.setItem(KEY, JSON.stringify(SEED()));
+      localStorage.setItem(CLICKS_KEY, JSON.stringify({ primary: 84, lk_book: 31, lk_site: 22, lk_ig: 18 }));
       localStorage.setItem(SEEDED_KEY, '1');
       notify();
     },
