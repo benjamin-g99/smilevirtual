@@ -15,7 +15,7 @@
   const CFG_KEY = 'smilevirtual.config.v1';
   const CASES_KEY = 'smilevirtual.cases.v1';
   const CLICKS_KEY = 'smilevirtual.clicks.v1';
-  const SEEDED_KEY = 'smilevirtual.seeded.v3';
+  const SEEDED_KEY = 'smilevirtual.seeded.v4';
 
   /* ---- SLA + status model -------------------------------------------------
      The portal's north-star is MEDIAN TIME-TO-SEND. Target SLA below. */
@@ -97,6 +97,21 @@
     removeCase(id) { localStorage.setItem(CASES_KEY, JSON.stringify(this.cases().filter(c => c.id !== id))); notify(); },
 
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+
+    /* resolve a lead's friendly marketing channel from utm_source (via the
+       configurable alias map), falling back to the referrer, then Direct. */
+    channel(lead) {
+      const al = this.config().sourceAliases || {};
+      const s = (lead.source && lead.source.utm_source) || '';
+      if (s) { const k = s.toLowerCase(); return al[k] || (s.charAt(0).toUpperCase() + s.slice(1)); }
+      const ref = (lead.source && lead.source.referrer) || '';
+      if (/instagram/i.test(ref)) return al.instagram || 'Instagram';
+      if (/facebook|fb\./i.test(ref)) return al.facebook || 'Facebook';
+      if (/google/i.test(ref)) return al.google || 'Google';
+      if (/tiktok/i.test(ref)) return al.tiktok || 'TikTok';
+      if (ref) return 'Website';
+      return al.direct || 'Direct';
+    },
 
     all() { return read().map(decorate).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); },
     get(id) { const l = read().find(x => x.id === id); return l ? decorate(l) : null; },
@@ -210,11 +225,22 @@
       };
     },
 
-    /* ---- deep analytics: the full lead-capture workflow ---------------- */
-    analytics() {
-      const leads = read();
+    /* ---- deep analytics: the full lead-capture workflow ----------------
+       range = { from:ms|null, to:ms|null } filters leads by createdAt; monthly
+       ad spend is scaled to the window so CPL/CPA/ROAS stay meaningful. */
+    analytics(range) {
+      range = range || {};
+      const all = read();
+      const from = range.from || null, to = range.to || null;
+      const leads = all.filter(l => { const t = new Date(l.createdAt).getTime(); if (from && t < from) return false; if (to && t > to) return false; return true; });
+      // scale monthly spend → number of 30-day "months" the window covers
+      const MO = 30 * 864e5;
+      let months;
+      if (from && to) months = Math.max(0.1, (to - from) / MO);
+      else if (from) months = Math.max(0.1, (Date.now() - from) / MO);
+      else { const ts = all.map(l => new Date(l.createdAt).getTime()); months = ts.length ? Math.max(1, (Date.now() - Math.min(...ts)) / MO) : 1; }
+      const spendScale = months;
       const cfg = this.config();
-      const has = (l, f) => f(l);
       // top-of-funnel → bottom, with where people drop
       const reached = (steps) => leads.filter(l => steps.includes(l.furthestStep)).length;
       const started = leads.length;
@@ -257,8 +283,8 @@
       const spend = cfg.spendBySource || {};
       const bySrc = {};
       leads.forEach(l => {
-        const src = (l.source && l.source.utm_source) || 'direct';
-        const r = bySrc[src] || (bySrc[src] = { source:src, leads:0, sent:0, viewed:0, booked:0, paid:0, revenue:0, spend:spend[src]||0 });
+        const src = this.channel(l);                       // friendly channel via alias map
+        const r = bySrc[src] || (bySrc[src] = { source:src, leads:0, sent:0, viewed:0, booked:0, paid:0, revenue:0, spend:Math.round((spend[src.toLowerCase()]||0)*spendScale) });
         r.leads++;
         if (l.video && l.video.sentAt) r.sent++;
         if (l.video && l.video.viewedAt) r.viewed++;
@@ -321,6 +347,11 @@
       { type: 'select', label: 'How soon are you hoping to start?', options: ['As soon as possible', 'Within 1–3 months', '3–6 months', 'Just exploring for now'] }
     ],
     analytics: { metaPixelId: '', ga4Id: '', googleAdsId: '', customEndpoint: '' },
+    // map raw utm_source values (lowercased) → friendly channel labels shown in reporting.
+    // Lets each practice plug their existing UTM tagging into our attribution.
+    sourceAliases: { meta: 'Facebook', fb: 'Facebook', facebook: 'Facebook', ig: 'Instagram', instagram: 'Instagram',
+      google: 'Google', 'google-ads': 'Google', adwords: 'Google', tiktok: 'TikTok', tt: 'TikTok',
+      website: 'Website', site: 'Website', direct: 'Direct', email: 'Email', yelp: 'Yelp' },
     reviews: { googleRating: 4.9, googleCount: 1284, googleUrl: '', yelpRating: 0, yelpCount: 0, yelpUrl: '' },
     site: { headline: 'See your dream smile — free, from your phone', subhead: 'Get an instant preview and a personal video consultation from Dr. Harris. No office visit to begin.', ctaText: 'Start my free smile preview', showReviews: true },
     links: [
@@ -328,7 +359,7 @@
       { id: 'lk_site', label: 'Our website', url: 'https://example.com', icon: '🌐' },
       { id: 'lk_ig',   label: 'Follow us on Instagram', url: 'https://instagram.com', icon: '📸' }
     ],
-    spendBySource: { meta: 1200, google: 900, tiktok: 300 }   // monthly ad spend (demo) — drives ROAS/CPA
+    spendBySource: { google: 900, facebook: 700, instagram: 500, tiktok: 300 }   // monthly spend per PAID channel (demo) — drives ROAS/CPA
   };
 
   /* ---- seed leads: a realistic, alive queue ------------------------------ */
@@ -357,7 +388,7 @@
         photos: ['demo:f', 'demo:c'], sim: { enabled: false },
         questionAnswers: { 1: 'No, never', 2: 'Just exploring for now' },
         contact: { firstName: 'Marcus', email: 'marcus.t@email.com', phone: '' },
-        source: { utm_source: 'meta', campaign: 'smile-spring', content: 'carousel-b' },
+        source: { utm_source: 'instagram', campaign: 'reels-organic' },
         assignedTo: null, notes: [], tags: [], video: null, booking: null },
 
       // HOT recovery: photos done, NEVER gave contact — the segment to nudge hard
@@ -371,7 +402,7 @@
       { id: uid(), createdAt: hoursAgo(30), updatedAt: hoursAgo(30), status: 'new',
         furthestStep: 'goals', goals: ['Not sure yet'], goalText: '',
         photos: [], sim: { enabled: false }, questionAnswers: {},
-        contact: {}, source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
+        contact: {}, source: { utm_source: 'website', referrer: 'https://harrissmile.com' },
         assignedTo: null, notes: [], tags: ['abandoned'], video: null, booking: null },
 
       // SENT, awaiting view
@@ -438,7 +469,7 @@
         assignedTo: null, notes: [], tags: ['abandoned'], video: null, booking: null },
       { id: uid(), createdAt: hoursAgo(15), updatedAt: hoursAgo(15), status: 'new',
         furthestStep: 'goals', goals: ['Whiter teeth'], goalText: '', photos: [], sim: { enabled: false },
-        questionAnswers: {}, contact: {}, source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
+        questionAnswers: {}, contact: {}, source: {},
         assignedTo: null, notes: [], tags: ['abandoned'], video: null, booking: null }
     ];
   }

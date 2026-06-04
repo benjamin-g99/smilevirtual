@@ -22,9 +22,16 @@ if (window.SmileStore) SmileStore.ensureSeeded();
 function getSource(){
   const p = new URLSearchParams(location.search);
   const s = {};
+  // standard UTM params (keep full keys so reporting can map them)
   ['utm_source','utm_campaign','utm_content','utm_medium','utm_term'].forEach(k=>{
-    const v = p.get(k); if(v) s[k.replace('utm_','')] = v;
+    const v = p.get(k); if(v) s[k] = v;
   });
+  // ad-platform click IDs — enable offline/closed-loop conversion upload later
+  ['fbclid','gclid','ttclid','msclkid'].forEach(k=>{ const v=p.get(k); if(v) s[k]=v; });
+  // internal surfaces pass ?from=… ; treat as the source when no UTM is set
+  const from = p.get('from'); if(from && !s.utm_source) s.utm_source = from;
+  // referrer fallback so we can still attribute organic clicks with no tags
+  if(document.referrer) s.referrer = document.referrer;
   return s;
 }
 const SOURCE = getSource();

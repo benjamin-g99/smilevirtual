@@ -11,6 +11,8 @@
   let activeView = 'queue';
   let activeFilter = 'all';
   let openLeadId = null;
+  let perfRange = { key:'all', from:null, to:null };   // Performance time window
+  let settingsSection = 'profile';                     // active Settings sub-section
   const recordedBlobs = {};        // in-memory recorded takes, keyed by lead id (demo)
 
   const $ = (s, r=document) => r.querySelector(s);
@@ -79,7 +81,7 @@
     return {cls:'ok', txt:`${lead.slaLeft}h left on SLA`};
   }
   function heatLabel(h){ return {hot:'🔥 Hot',warm:'Warm',cold:'Cold',done:'Closed loop'}[h]||h; }
-  function srcOf(lead){ return (lead.source&&lead.source.utm_source)||'direct'; }
+  function srcOf(lead){ return SmileStore.channel(lead); }
 
   /* ---------- QUEUE ---------- */
   function passesFilter(l){
@@ -138,8 +140,23 @@
 
   /* ---------- DASHBOARD ---------- */
   function renderPerf(){
-    const m = SmileStore.metrics(), a = SmileStore.analytics(), cv=a.conversion;
+    const m = SmileStore.metrics(), a = SmileStore.analytics(perfRange), cv=a.conversion;
     const money = n => '$'+(n||0).toLocaleString();
+    const RANGES=[['all','All time'],['90','Last 90 days'],['month','Last month'],['custom','Custom range']];
+    const fmt = ms => new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const rlabel = perfRange.key==='all' ? 'All time'
+      : perfRange.key==='90' ? 'Last 90 days'
+      : perfRange.key==='month' ? 'Last 30 days'
+      : (perfRange.from||perfRange.to) ? `${perfRange.from?fmt(perfRange.from):'…'} → ${perfRange.to?fmt(perfRange.to):'now'}` : 'Pick dates';
+    let html = `<div class="perfbar">
+      <div class="seg-group">${RANGES.map(([k,l])=>`<button class="seg ${perfRange.key===k?'on':''}" onclick="DoctorApp.setPerfRange('${k}')">${l}</button>`).join('')}</div>
+      <div class="daterange" ${perfRange.key==='custom'?'':'hidden'}>
+        <input type="date" id="perfFrom" value="${perfRange.from?new Date(perfRange.from).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
+        <span>→</span>
+        <input type="date" id="perfTo" value="${perfRange.to?new Date(perfRange.to).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
+      </div>
+      <span class="rangelabel">📅 ${esc(rlabel)} · <b>${a.funnel[0].count}</b> leads</span>
+    </div>`;
     // headline KPIs
     const kpis = [
       ['Median time-to-send', m.medianTimeToSendH==null?'—':m.medianTimeToSendH+'h', m.overdue>0?m.overdue+' overdue':'on pace', m.overdue>0],
@@ -149,7 +166,7 @@
       ['Video view rate', a.videos.viewRate+'%', a.videos.avgWatchPct+'% avg watched']
     ];
     const kicons=['⏱','📅','💳','💰','▶'];
-    let html = `<div class="metrics kpirow">`+kpis.map(([l,v,sub,alert],i)=>
+    html += `<div class="metrics kpirow">`+kpis.map(([l,v,sub,alert],i)=>
       `<div class="metric kpi ${alert?'alert':''}"><div class="kpi-ic">${kicons[i]}</div><div class="big">${v}</div><div class="lbl">${l}</div>${sub?`<div class="msub">${esc(sub)}</div>`:''}</div>`).join('')+`</div>`;
 
     // FUNNEL with drop-off
@@ -189,8 +206,8 @@
       </div></div>`;
 
     // BY SOURCE — full economics
-    html += `<div class="panel"><h3><span class="ph-ic">📊</span>By ad source — full economics</h3>
-      <p class="muted small">Spend is set in Settings. This is the table that decides where the next dollar goes.</p>
+    html += `<div class="panel"><h3><span class="ph-ic">📊</span>By source — full economics</h3>
+      <p class="muted small">Where leads come from — paid or organic. Spend (paid channels only) is set in Settings; organic sources show “—”. This is the table that decides where the next dollar goes.</p>
       <table class="funnel"><tr><th>Source</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Sent</th><th>Viewed</th><th>Booked</th><th>Paid</th><th>Revenue</th><th>CPA</th><th>ROAS</th></tr>`+
       a.sources.map(r=>`<tr>
         <td class="src">${esc(r.source)}</td><td>${r.spend?money(r.spend):'—'}</td>
@@ -201,10 +218,19 @@
 
     $('#perf').innerHTML = html;
   }
+  function setPerfRange(key){
+    perfRange.key=key; const now=Date.now();
+    if(key==='all'){ perfRange.from=null; perfRange.to=null; }
+    else if(key==='90'){ perfRange.from=now-90*864e5; perfRange.to=null; }
+    else if(key==='month'){ perfRange.from=now-30*864e5; perfRange.to=null; }
+    else if(key==='custom'){ const f=$('#perfFrom')&&$('#perfFrom').value, t=$('#perfTo')&&$('#perfTo').value;
+      perfRange.from=f?new Date(f).getTime():null; perfRange.to=t?new Date(t).getTime()+(864e5-1):null; }
+    renderPerf();
+  }
 
   /* ---------- SETTINGS ---------- */
   function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
-  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & analytics':'📈','Reviews & ratings':'⭐','Landing page copy':'🌐','Ad spend (for ROAS)':'💸','Link-in-bio links':'🔗','Your public pages':'🚀'};
+  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & analytics':'📈','Reviews & ratings':'⭐','Landing page copy':'🌐','Marketing spend':'💸','Link-in-bio links':'🔗','Your public pages':'🚀'};
   function scard(title, sub, body){ const ic=SET_ICONS[title]||'⚙️';
     return `<div class="panel sset"><div class="seth"><span class="setic">${ic}</span><div class="seth-t"><h3>${esc(title)}</h3>${sub?`<p class="muted small">${sub}</p>`:''}</div></div><div class="sbody">${body}</div></div>`; }
   function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="DoctorApp.cfg('${path}',this.value)"></label>`; }
@@ -243,9 +269,15 @@
         </div>`).join('')+`</div>
        <button class="cta-d ghost-d" onclick="DoctorApp.qAdd()">+ Add question</button>`);
 
-    const tracking = scard('Tracking & analytics', 'Where the conversion pixel fires from the patient flow. (Wire server-side for production.)',
+    const aliases=c.sourceAliases||{};
+    const tracking = scard('Tracking & analytics',
+      'Your existing pixels fire on every step + conversion. Tag your ad/bio/website links with <code>?utm_source=…</code> and we attribute automatically; click IDs (fbclid/gclid) are captured for offline conversion upload.',
       `<div class="srow">${fld('Meta Pixel ID','analytics.metaPixelId',an.metaPixelId)}${fld('GA4 Measurement ID','analytics.ga4Id',an.ga4Id)}</div>
-       <div class="srow">${fld('Google Ads ID','analytics.googleAdsId',an.googleAdsId)}${fld('Custom event endpoint','analytics.customEndpoint',an.customEndpoint)}</div>`);
+       <div class="srow">${fld('Google Ads ID','analytics.googleAdsId',an.googleAdsId)}${fld('Server / webhook endpoint','analytics.customEndpoint',an.customEndpoint)}</div>
+       <div class="submini">Source mapping <span class="muted small">— map the <code>utm_source</code> you use → the channel name in reports</span></div>
+       <div class="aliaslist">`+Object.keys(aliases).map(k=>`
+         <div class="aliasrow"><input value="${esc(k)}" disabled class="ak"><span>→</span><input value="${esc(aliases[k])}" onchange="DoctorApp.aliasField('${esc(k)}',this.value)"><button class="xbtn" onclick="DoctorApp.aliasDel('${esc(k)}')">✕</button></div>`).join('')+`</div>
+       <div class="aliasadd"><input id="aliasKey" placeholder="utm_source (e.g. ig)"><span>→</span><input id="aliasVal" placeholder="Channel (e.g. Instagram)"><button class="cta-d ghost-d" onclick="DoctorApp.aliasAdd()">Add</button></div>`);
 
     const reviews = scard('Reviews & ratings', 'Shown on your landing page & directory profile. Paste your public ratings (live Google/Yelp sync needs their API server-side).',
       `<div class="srow">${fld('Google rating','reviews.googleRating',rev.googleRating,'number')}${fld('Google # reviews','reviews.googleCount',rev.googleCount,'number')}</div>
@@ -259,8 +291,9 @@
        <label class="sfield"><span>Subhead</span><textarea onchange="DoctorApp.cfg('site.subhead',this.value)">${esc(site.subhead||'')}</textarea></label>
        ${fld('Primary CTA text','site.ctaText',site.ctaText)}`);
 
-    const spendCard = scard('Ad spend (for ROAS)', 'Monthly spend per source — drives CPL / CPA / ROAS on the Performance tab.',
-      `<div class="srow">${fld('Meta / $mo','spendBySource.meta',spend.meta,'number')}${fld('Google / $mo','spendBySource.google',spend.google,'number')}${fld('TikTok / $mo','spendBySource.tiktok',spend.tiktok,'number')}</div>`);
+    const spendCard = scard('Marketing spend', 'Monthly spend per PAID channel — drives CPL / CPA / ROAS. Leave organic channels (website, direct) blank.',
+      `<div class="srow">${fld('Google / $mo','spendBySource.google',spend.google,'number')}${fld('Facebook / $mo','spendBySource.facebook',spend.facebook,'number')}</div>
+       <div class="srow">${fld('Instagram / $mo','spendBySource.instagram',spend.instagram,'number')}${fld('TikTok / $mo','spendBySource.tiktok',spend.tiktok,'number')}</div>`);
 
     const links = scard('Link-in-bio links', 'Shown on your Linktree-style bio page. Click counts are tracked.',
       `<div class="linklist">`+(c.links||[]).map((lk,i)=>`
@@ -281,8 +314,25 @@
         <a class="cta-d ghost-d" href="../directory/" target="_blank">📍 Directory profile</a>
        </div>`);
 
-    $('#settings').innerHTML = `<div class="setgrid">${profile}${team}${qs}${reviews}${sitecard}${tracking}${spendCard}${links}${pages}</div>`;
+    const sections=[
+      ['profile','Practice & doctor','🦷',profile],
+      ['team','Team & permissions','👥',team],
+      ['questions','Intake questions','❓',qs],
+      ['reviews','Reviews & ratings','⭐',reviews],
+      ['site','Landing page copy','🌐',sitecard],
+      ['tracking','Tracking & attribution','📈',tracking],
+      ['spend','Marketing spend','💸',spendCard],
+      ['links','Link-in-bio','🔗',links],
+      ['pages','Public pages','🚀',pages]
+    ];
+    if(!sections.some(s=>s[0]===settingsSection)) settingsSection='profile';
+    const active=sections.find(s=>s[0]===settingsSection);
+    $('#settings').innerHTML=`<div class="setlayout">
+      <nav class="setnav">${sections.map(([k,l,ic])=>`<button class="setnav-i ${k===settingsSection?'on':''}" onclick="DoctorApp.setSection('${k}')"><span class="ni">${ic}</span><span>${l}</span></button>`).join('')}</nav>
+      <div class="setpane">${active[3]}</div>
+    </div>`;
   }
+  function setSection(k){ settingsSection=k; renderSettings(); }
 
   /* settings mutations */
   function staffAdd(){ const c=cfg(); c.staff=(c.staff||[]).concat([{id:'u_'+Math.random().toString(36).slice(2,6),name:'New member',role:'Front desk',canRecord:false}]); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
@@ -296,6 +346,9 @@
   function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); SmileStore.saveConfig(c); renderSettings(); }
   function linkDel(i){ const c=cfg(); c.links.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
   function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; SmileStore.saveConfig(c); }
+  function aliasField(k,v){ const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); }
+  function aliasDel(k){ const c=cfg(); if(c.sourceAliases) delete c.sourceAliases[k]; SmileStore.saveConfig(c); renderSettings(); }
+  function aliasAdd(){ const k=($('#aliasKey').value||'').trim().toLowerCase(), v=($('#aliasVal').value||'').trim(); if(!k||!v) return; const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); renderSettings(); }
 
   /* ---------- DRAWER / CONSULT WORKSPACE ---------- */
   function openLead(id){ openLeadId=id; SmileStore.setStatus && maybeMarkReview(id); renderDrawer(id); $('#drawer').classList.add('show'); $('#scrim').classList.add('show'); }
@@ -395,9 +448,10 @@
           ${l.booking?`<div class="note" style="margin-top:12px">📅 ${esc(l.booking.apptTime||'Booked')}</div>`:''}
           ${ l.status==='booked' ? `<div class="paidbox">
             <label class="perm"><input type="checkbox" ${l.booking&&l.booking.attended?'checked':''} onchange="DoctorApp.markAttended('${id}',this.checked)"> attended consult</label>
-            <label class="perm"><input type="checkbox" ${l.booking&&l.booking.paid?'checked':''} onchange="DoctorApp.markPaid('${id}',this.checked)"> started treatment / paid</label>
-            <label class="sfield" style="margin-top:6px"><span>Treatment value ($)</span><input type="number" value="${(l.booking&&l.booking.treatmentValue)||''}" onchange="DoctorApp.setTreatmentValue('${id}',this.value)" placeholder="e.g. 9500"></label>
-            <div class="hint" style="font-size:11px;color:rgba(30,42,42,.5)">Feeds revenue & ROAS on the Performance tab. (Production: sync from your PMS.)</div>
+            <label class="perm"><input type="checkbox" ${l.booking&&l.booking.paid?'checked':''} onchange="DoctorApp.markPaid('${id}',this.checked)"> converted — started treatment / paid</label>
+            <label class="sfield" style="margin-top:6px"><span>Booked / converted value ($)</span><input type="number" value="${(l.booking&&l.booking.treatmentValue)||''}" onchange="DoctorApp.setTreatmentValue('${id}',this.value)" placeholder="e.g. 9500"></label>
+            <label class="sfield"><span>Conversion notes</span><textarea onchange="DoctorApp.setConversionNotes('${id}',this.value)" placeholder="What did they book? Plan, deposit, financing terms, follow-up…">${esc((l.booking&&l.booking.conversionNotes)||'')}</textarea></label>
+            <div class="hint" style="font-size:11px;color:rgba(30,42,42,.5)">Value feeds revenue, avg case value & ROAS on the Performance tab. <em>(Production: sync from your PMS.)</em></div>
           </div>`:'' }
         </div>
 
@@ -462,6 +516,9 @@
   function markAttended(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{attended:on})}); }
   function markPaid(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{paid:on})}); }
   function setTreatmentValue(id,v){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{treatmentValue:+v||0})}); }
+  function setConversionNotes(id,v){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{conversionNotes:v})}); }
+  // manual status override; ensure a booking object exists when moved to booked
+  function setStatusManual(id,status){ const extra = (status==='booked') ? { booking: Object.assign({ bookedAt:new Date().toISOString(), apptTime:'Manually marked booked' }, (SmileStore.get(id)||{}).booking) } : {}; SmileStore.setStatus(id,status,extra); toast('Status set to '+(SmileStore.STATUS[status]||{}).label); }
 
   function statusFlowHtml(l){
     const steps=[['new','New'],['in_review','In review'],['recorded','Recorded'],['sent','Sent'],['viewed','Viewed'],['booked','Booked']];
@@ -471,7 +528,13 @@
         const o=SmileStore.STATUS[k].order;
         const cls = l.status===k?'cur':(o<order?'done':'');
         return `<span class="stp ${cls}">${lbl}</span>${i<steps.length-1?'<span class="arr">→</span>':''}`;
-      }).join('')+`</div></div>`;
+      }).join('')+`</div>
+      <div class="statusset">
+        <span>Set manually</span>
+        <select class="assignsel" onchange="DoctorApp.setStatusManual('${l.id}',this.value)">
+          ${Object.keys(SmileStore.STATUS).map(k=>`<option value="${k}" ${l.status===k?'selected':''}>${SmileStore.STATUS[k].label}</option>`).join('')}
+        </select>
+      </div></div>`;
   }
 
   /* ---------- workspace actions ---------- */
@@ -1017,6 +1080,7 @@
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
     setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand,
     cfg: cfgSet, staffAdd, staffDel, staffRec, staffField, qAdd, qDel, qMove, qField, linkAdd, linkDel, linkField,
-    simPreview, simTweak, markAttended, markPaid, setTreatmentValue };
+    aliasField, aliasDel, aliasAdd, setSection,
+    simPreview, simTweak, markAttended, markPaid, setTreatmentValue, setConversionNotes, setStatusManual, setPerfRange };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);
