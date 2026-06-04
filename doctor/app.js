@@ -175,6 +175,16 @@
         <div class="t"><b>${esc(displayName(l))}</b><span>${esc(c.email||'no email yet')} ${c.phone?'· '+esc(c.phone):''}</span></div>
         <button class="x" onclick="DoctorApp.closeDrawer()">✕</button>
       </div>
+      <div class="dr-cta">
+        ${ !hasRec
+          ? `<button class="cta-d big-cta" onclick="DoctorApp.openRecorder('${id}')">🎬 Open Consult Studio</button>`
+          : !sent
+            ? `<button class="cta-d big-cta coral-d" onclick="DoctorApp.sendVideo('${id}')">📤 Send video consult</button>
+               <button class="cta-d ghost-d" onclick="DoctorApp.openRecorder('${id}')">⟳ Re-record</button>
+               <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview</button>`
+            : `<div class="cta-sent">✓ Sent ${timeAgo(l.video.sentAt)} <span class="statp" data-s="${l.status}">${l.statusLabel}</span></div>
+               <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview email</button>` }
+      </div>
       <div class="dr-body">
 
         ${statusFlowHtml(l)}
@@ -293,8 +303,9 @@
      canvas + mic, so the output is a reusable, branded presentation video. */
   const PIP_MODES=[
     {k:'br', label:'bottom-right'},{k:'bl', label:'bottom-left'},
-    {k:'br-lg', label:'large'},{k:'full', label:'full (talking head)'},{k:'off', label:'hidden'}
+    {k:'br-lg', label:'large'},{k:'full', label:'full (talking head)'},{k:'avatar', label:'off — show photo'}
   ];
+  let docPhotoImg=null, audioCtx=null, analyser=null, freqData=null;
   let studio = { id:null, lead:null, slides:[], idx:0, raf:0, pip:0, tele:true, orient:'land',
     camStream:null, recorder:null, chunks:[], recTimer:null, recStart:0, camReady:false };
   let library = [];                  // merged seed + persisted cases (with Image objects)
@@ -309,11 +320,20 @@
   /* ----- brand ----- */
   function brand(){ const b=cfg().brand||{}; return { name:b.name||'', logo:b.logo||null, primary:b.primary||'#0E3F3C', accent:b.accent||'#E8C07D' }; }
   function loadBrandLogo(){ const l=brand().logo; if(!l){ brandLogoImg=null; return; } if(!brandLogoImg || brandLogoImg._src!==l){ brandLogoImg=imgFrom(l); brandLogoImg._src=l; } }
+  function loadDocPhoto(){ const p=(cfg().doctor||{}).photo; if(!p){ docPhotoImg=null; return; } if(!docPhotoImg || docPhotoImg._src!==p){ docPhotoImg=imgFrom(p); docPhotoImg._src=p; } }
+
+  /* audio level meter (for the camera-off pulsing avatar) */
+  function initAudioMeter(stream){
+    try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume&&audioCtx.resume();
+      const src=audioCtx.createMediaStreamSource(stream); analyser=audioCtx.createAnalyser(); analyser.fftSize=256;
+      freqData=new Uint8Array(analyser.frequencyBinCount); src.connect(analyser); }catch(e){ analyser=null; }
+  }
+  function audioLevel(){ if(!analyser) return 0; analyser.getByteFrequencyData(freqData); let s=0; for(let i=0;i<freqData.length;i++) s+=freqData[i]; return Math.min(1,(s/freqData.length)/120); }
 
   async function openRecorder(id){
     studio.id=id; studio.lead=SmileStore.get(id); studio.idx=0; studio.pip=0; studio.tele=true;
     setOrient('land');
-    buildLibrary(); loadBrandLogo();
+    buildLibrary(); loadBrandLogo(); loadDocPhoto();
     studio.slides = await buildSlides(studio.lead);
     $('#studioPatient').textContent='— '+displayName(studio.lead);
     renderStrip(); renderCaseLib(); renderBrandTab(); tab('edit');
@@ -325,10 +345,12 @@
     try{
       studio.camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:true});
       $('#recVideo').srcObject=studio.camStream; $('#recVideo').muted=true; await $('#recVideo').play().catch(()=>{});
-      studio.camReady=true;
+      studio.camReady=true; initAudioMeter(studio.camStream);
     }catch(e){
-      studio.camReady=false; studio.pip=PIP_MODES.findIndex(m=>m.k==='off'); updatePipLabel();
-      toast('No camera/mic — you can still build & record the slides (audio needs mic permission).');
+      // mic-only? still useful for the camera-off avatar (audio pulsation)
+      try{ studio.camStream=await navigator.mediaDevices.getUserMedia({audio:true}); initAudioMeter(studio.camStream); }catch(e2){}
+      studio.camReady=false; studio.pip=PIP_MODES.findIndex(m=>m.k==='avatar'); updatePipLabel();
+      toast('No camera — using your profile photo. You can still record the slides + audio.');
     }
     startDraw();
   }
@@ -352,7 +374,8 @@
     const imgs=await Promise.all(photoSrcs.map(loadImg));
     slides.push({kind:'photos', heading:'Your photos', imgs:imgs.filter(Boolean), note:noteFor('concern','recommendation')});
     if(l.sim&&l.sim.enabled) slides.push({kind:'preview', heading:'Your smile preview',
-      caption:'Illustrative preview — your real plan is what we’re discussing now.', note:noteFor('preview')});
+      caption:'Illustrative preview — your real plan is what we’re discussing now.', note:noteFor('preview'),
+      sim:{ white:0.9, natural:0.2 } });   // doctor-tweakable if the auto-sim looks off
     const plan=planFor(l);
     slides.push({kind:'plan', heading:'Your recommended plan', lines:plan.lines.slice(), financing:plan.financing,
       cta:'Next step: book your visit →', note:noteFor('timeline','next step','close')});
@@ -367,9 +390,11 @@
   function startDraw(){ cancelAnimationFrame(studio.raf); const loop=()=>{ drawStage(); studio.raf=requestAnimationFrame(loop); }; loop(); }
   function drawStage(){
     const c=sctx(), W=stage().width, H=stage().height;
-    const s=studio.slides[studio.idx]; const full = PIP_MODES[studio.pip].k==='full';
-    if(full && studio.camReady){ drawVideoCover(c,0,0,W,H); drawLowerThird(c,W,H); }
-    else { drawSlide(c,s,W,H); if(studio.camReady && PIP_MODES[studio.pip].k!=='off') drawPip(c,W,H); }
+    const s=studio.slides[studio.idx]; const mode=PIP_MODES[studio.pip].k;
+    if(mode==='full' && studio.camReady){ drawVideoCover(c,0,0,W,H); drawLowerThird(c,W,H); }
+    else { drawSlide(c,s,W,H);
+      if(mode==='avatar') drawAvatarPip(c,W,H);
+      else if(studio.camReady) drawPip(c,W,H); }
   }
   function drawVideoCover(c,x,y,w,h){
     const v=$('#recVideo'), vw=v.videoWidth||1280, vh=v.videoHeight||720;
@@ -378,12 +403,35 @@
     c.translate(x+w,y); c.scale(-1,1); c.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh); c.restore();
   }
   function drawPip(c,W,H){
-    const m=PIP_MODES[studio.pip].k; const big=m==='br-lg';
-    const w=Math.round(W*(big?0.34:0.24)), h=Math.round(w*9/16), pad=Math.round(W*0.02)+8;
+    const m=PIP_MODES[studio.pip].k; const big=m==='br-lg'; const port=H>W;
+    // portrait needs a noticeably larger PiP to read on a phone
+    const frac = big ? (port?0.50:0.34) : (port?0.40:0.24);
+    const w=Math.round(W*frac), h=Math.round(w*9/16), pad=Math.round(W*0.025)+8;
     const x = m==='bl' ? pad : W-w-pad, y = H-h-pad;
-    c.save(); roundRect(c,x,y,w,h,14); c.clip(); drawVideoCover(c,x,y,w,h); c.restore();
-    c.save(); roundRect(c,x,y,w,h,14); c.lineWidth=4; c.strokeStyle='#fff'; c.stroke(); c.restore();
+    c.save(); roundRect(c,x,y,w,h,16); c.clip(); drawVideoCover(c,x,y,w,h); c.restore();
+    c.save(); roundRect(c,x,y,w,h,16); c.lineWidth=4; c.strokeStyle='#fff'; c.stroke(); c.restore();
   }
+  // camera-off: doctor's profile photo with an audio-reactive pulse ring
+  function drawAvatarPip(c,W,H){
+    const port=H>W, B=brand(); const level=audioLevel();
+    const d=Math.round(W*(port?0.40:0.22)), pad=Math.round(W*0.025)+8;
+    const cx=W-pad-d/2, cy=H-pad-d/2, r=d/2;
+    // pulsing rings driven by mic level (gentle idle pulse when quiet)
+    const t=Date.now()/600, idle=(Math.sin(t)+1)/2*0.08, amp=Math.max(idle, level)*0.5;
+    c.save();
+    c.beginPath(); c.arc(cx,cy,r+10+amp*r*0.9,0,7); c.fillStyle=hexA(B.accent,0.18+amp*0.25); c.fill();
+    c.beginPath(); c.arc(cx,cy,r+4,0,7); c.fillStyle=B.accent; c.fill();
+    c.beginPath(); c.arc(cx,cy,r,0,7); c.closePath(); c.save(); c.clip();
+    if(docPhotoImg&&docPhotoImg.complete&&docPhotoImg.naturalWidth){ coverImg(c,docPhotoImg,cx-r,cy-r,d,d); }
+    else { c.fillStyle=B.primary; c.fillRect(cx-r,cy-r,d,d); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle';
+      c.font='800 '+Math.round(d*0.34)+'px Plus Jakarta Sans'; c.fillText(docInitials(),cx,cy); c.textBaseline='alphabetic'; c.textAlign='left'; }
+    c.restore();
+    // tiny mic glyph
+    c.fillStyle='rgba(0,0,0,.5)'; c.beginPath(); c.arc(cx, cy+r-14, 15,0,7); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.font='14px Plus Jakarta Sans'; c.fillText(level>0.04?'🔊':'🎙',cx,cy+r-13); c.textAlign='left'; c.textBaseline='alphabetic';
+    c.restore();
+  }
+  function docInitials(){ const n=(cfg().doctor||{}).name||'Dr'; return n.replace(/^Dr\.?\s*/,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+  function hexA(hex,a){ const n=parseInt(hex.replace('#',''),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
 
   /* slide backgrounds + content (brand-themed, orientation-aware) */
   function drawSlide(c,s,W,H){
@@ -404,8 +452,8 @@
       else placeholderNote(c,'Patient photos appear here (this demo lead used seeded placeholders).',W,H);
     } else if(s.kind==='preview'){
       slideTitle(c,s.heading,m,B); const r=rects2(W,H,m,2,port);
-      drawSmilePanel(c,r[0].x,r[0].y,r[0].w,r[0].h,false,'Now');
-      drawSmilePanel(c,r[1].x,r[1].y,r[1].w,r[1].h,true,'Preview');
+      drawSmilePanel(c,r[0].x,r[0].y,r[0].w,r[0].h,false,'Now',null);
+      drawSmilePanel(c,r[1].x,r[1].y,r[1].w,r[1].h,true,'Preview',s.sim);
       c.fillStyle='rgba(255,255,255,.65)'; c.textAlign='center'; c.font='500 22px Plus Jakarta Sans'; wrapL(c,s.caption||'',W/2,H-60,W-2*m,28); c.textAlign='left';
     } else if(s.kind==='case'){
       slideTitle(c,s.heading,m,B); const top=port?H*0.16:160;
@@ -441,16 +489,25 @@
   function roundStroke(c,x,y,w,h,r){ c.save(); roundRect(c,x,y,w,h,r); c.lineWidth=3; c.strokeStyle='rgba(255,255,255,.25)'; c.stroke(); c.restore(); }
   function wrapL(c,t,x,y,maxw,lh){ const words=String(t).split(' ');let line='',yy=y;words.forEach(w=>{const test=line+w+' ';if(c.measureText(test).width>maxw && line){c.fillText(line.trim(),x,yy);line=w+' ';yy+=lh;}else line=test;});c.fillText(line.trim(),x,yy); }
   function darken(hex,amt){ const n=parseInt(hex.replace('#',''),16); let r=Math.max(0,(n>>16)-amt),g=Math.max(0,((n>>8)&255)-amt),b=Math.max(0,(n&255)-amt); return '#'+(r<<16|g<<8|b).toString(16).padStart(6,'0'); }
-  function drawSmilePanel(c,x,y,w,h,after,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip();
+  function drawSmilePanel(c,x,y,w,h,after,label,sim){ c.save(); roundRect(c,x,y,w,h,18); c.clip();
     const sk=c.createLinearGradient(x,y,x,y+h); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(x,y,w,h);
     const cx=x+w/2,cy=y+h/2,mw=w*0.6,mh=mw*0.42;
     c.fillStyle='#B65C5C'; c.beginPath(); c.ellipse(cx,cy,mw/2+13,mh/2+13,0,0,7); c.fill();
     c.fillStyle='#5E2230'; c.beginPath(); c.ellipse(cx,cy,mw/2,mh/2,0,0,7); c.fill();
     c.save(); c.beginPath(); c.ellipse(cx,cy-mh*0.05,mw/2-5,mh/2-3,0,0,7); c.clip();
+    // doctor-tweakable "after": whiteness lerps tooth color; naturalness keeps slight imperfection
+    const white = sim ? sim.white : 1, natural = sim ? sim.natural : 0;
+    const toothCol = after ? lerpHex('#E2D4AE','#FFFFFF', white) : '#E2D4AE';
     const n=8,gap=3,tw=(mw-12)/n,x0=cx-(mw-12)/2,ty=cy-mh/2+3;
-    for(let i=0;i<n;i++){let px=x0+i*tw,ph=mh-12,py=ty;c.fillStyle=after?'#fff':'#E2D4AE';if(!after){if(i===3)py+=6;if(i===4)px+=4;}c.fillRect(px,py,tw-gap,ph);} c.restore();
+    for(let i=0;i<n;i++){let px=x0+i*tw,ph=mh-12,py=ty;c.fillStyle=toothCol;
+      if(!after){ if(i===3)py+=6; if(i===4)px+=4; }
+      else { if(natural>0.5 && i===4) px+=2*natural; if(natural>0.3 && i===3) py+=4*natural; }   // keep it believable
+      c.fillRect(px,py,tw-gap,ph);} c.restore();
     c.restore(); roundStroke(c,x,y,w,h,18); tagLabel(c,x+14,y+14,label);
   }
+  function lerpHex(a,b,t){ t=Math.max(0,Math.min(1,t)); const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
+    const r=Math.round((pa>>16)+(((pb>>16)-(pa>>16))*t)), g=Math.round(((pa>>8)&255)+((((pb>>8)&255)-((pa>>8)&255))*t)), bl=Math.round((pa&255)+(((pb&255)-(pa&255))*t));
+    return '#'+(r<<16|g<<8|bl).toString(16).padStart(6,'0'); }
 
   /* ----- slide / pip / teleprompter controls ----- */
   function setSlide(i){ studio.idx=Math.max(0,Math.min(studio.slides.length-1,i)); updateSlideUi(); }
@@ -466,7 +523,11 @@
     $('#teleprompter').innerHTML = (s&&s.note)? `<div class="tl">${esc(s.note)}</div>` : '';
     renderEditPanel();
   }
-  function cyclePip(){ studio.pip=(studio.pip+1)%PIP_MODES.length; updatePipLabel(); }
+  function cyclePip(){ studio.pip=(studio.pip+1)%PIP_MODES.length; applyCamEnabled(); updatePipLabel(); }
+  function applyCamEnabled(){ // truly turn the camera off in avatar mode
+    if(!studio.camStream) return; const off=PIP_MODES[studio.pip].k==='avatar';
+    studio.camStream.getVideoTracks().forEach(t=>t.enabled=!off);
+  }
   function updatePipLabel(){ $('#pipToggle').textContent='📹 Camera: '+PIP_MODES[studio.pip].label; }
   function toggleTele(){ studio.tele=!studio.tele; $('#teleprompter').classList.toggle('off',!studio.tele); $('#teleToggle').textContent='📝 Script: '+(studio.tele?'on':'off'); }
 
@@ -485,7 +546,13 @@
     const area=(prop,label,val,hint)=>`<div class="fld"><label>${label}</label><textarea oninput="DoctorApp.edit('${prop}',this.value)">${esc(val||'')}</textarea>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
     if(s.kind==='intro'){ html+=txt('heading','Patient name / title',s.heading)+txt('sub','Subhead (goals)',s.sub); }
     else if(s.kind==='photos'){ html+=txt('heading','Heading',s.heading)+`<div class="hint">Photos come from the patient's submission.</div>`; }
-    else if(s.kind==='preview'){ html+=txt('heading','Heading',s.heading)+area('caption','Caption',s.caption); }
+    else if(s.kind==='preview'){ const sm=s.sim||{white:0.9,natural:0.2};
+      html+=txt('heading','Heading',s.heading)
+        +`<div class="fld"><label>Tweak the simulation</label>
+            <div class="rng"><span>Whiteness</span><input type="range" min="0.55" max="1" step="0.01" value="${sm.white}" oninput="DoctorApp.editSim('white',this.value)"></div>
+            <div class="rng"><span>Keep it natural</span><input type="range" min="0" max="1" step="0.05" value="${sm.natural}" oninput="DoctorApp.editSim('natural',this.value)"></div>
+            <div class="hint">If the automated preview looks too white or too perfect, dial it back so it matches what you'd realistically deliver.</div></div>`
+        +area('caption','Caption',s.caption); }
     else if(s.kind==='case'){ html+=txt('heading','Case label',s.heading)+`<div class="hint">Swap the case from the Cases tab.</div>`; }
     else if(s.kind==='text'){ html+=txt('heading','Heading',s.heading)+area('body','Body',s.body); }
     else if(s.kind==='plan'){ html+=txt('heading','Heading',s.heading)
@@ -495,6 +562,7 @@
     html+=`<div class="editrow"><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(-1)">↑ Up</button><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(1)">↓ Down</button>${studio.slides.length>1?`<button class="cta-d delbtn" onclick="DoctorApp.removeSlide(${studio.idx})">Delete</button>`:''}</div>`;
     $('#tabEdit').innerHTML=html;
   }
+  function editSim(prop,val){ const s=studio.slides[studio.idx]; if(!s) return; if(!s.sim) s.sim={white:0.9,natural:0.2}; s.sim[prop]=+val; }
   function edit(prop,val){
     const s=studio.slides[studio.idx]; if(!s) return;
     if(prop==='_lines'){ s.lines=val.split('\n').filter(x=>x.trim()).map(line=>{const [k,v]=line.split('|');return {k:(k||'').trim(),v:(v||'').trim()};}); }
@@ -591,6 +659,9 @@
       <label class="logo-drop" for="logoUp"><div class="lp" id="logoPrev">${B.logo?`<img src="${B.logo}">`:'<span style="font-size:22px">🦷</span>'}</div>
         <div><b style="font-size:13.5px">Practice logo</b><div class="hint">PNG/SVG with transparency works best. Shown top-right on slides.</div></div>
         <input type="file" id="logoUp" accept="image/*" hidden></label>
+      <label class="logo-drop" for="docUp"><div class="lp" id="docPrev" style="border-radius:50%">${(cfg().doctor||{}).photo?`<img src="${cfg().doctor.photo}">`:'<span style="font-size:22px">👤</span>'}</div>
+        <div><b style="font-size:13.5px">Doctor profile photo</b><div class="hint">Shown (with an audio pulse) when the camera is off in the studio.</div></div>
+        <input type="file" id="docUp" accept="image/*" hidden></label>
       <div class="swatchrow">
         <div class="swatch"><label>Slide color</label><input type="color" id="cPrimary" value="${B.primary}"></div>
         <div class="swatch"><label>Accent color</label><input type="color" id="cAccent" value="${B.accent}"></div>
@@ -607,6 +678,8 @@
     $('#bName').oninput=e=>{ SmileStore.saveBrand({name:e.target.value}); drawBrandPrev(); };
     $('#logoUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
       const logo=downscalePng(img,240); SmileStore.saveBrand({logo}); $('#logoPrev').innerHTML=`<img src="${logo}">`; loadBrandLogo(); drawBrandPrev(); };
+    $('#docUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
+      const photo=downscale(img,300); const c=cfg(); c.doctor=Object.assign({},c.doctor,{photo}); SmileStore.saveConfig(c); $('#docPrev').innerHTML=`<img src="${photo}">`; loadDocPhoto(); };
     $('#brandModal').classList.add('show'); drawBrandPrev();
   }
   function refreshBrand(){ renderBrandTab(); }
@@ -741,6 +814,6 @@
   global.DoctorApp = { openLead, closeDrawer, assign, toggleTag, addNote, copyScript, sendVideo, simulate, nudge,
     openRecorder, toggleRecord, useRecording, closeRecorder, previewEmail, closeEmail, bookFromEmail,
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
-    setOrient, addTextSlide, tab, filterCases, moveSlide, edit, openBrand, closeBrand };
+    setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

@@ -294,3 +294,51 @@ h3{font-family:var(--display);font-weight:500;font-size:18px;color:var(--teal-de
   .nav{order:3;width:100%}
   .lead{flex-wrap:wrap}
 }
+
+/* ---- prominent drawer CTA (primary next action) ---- */
+.dr-cta{position:sticky;top:84px;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:14px 24px;background:#FBF8F2;border-bottom:1px solid var(--line);box-shadow:0 8px 18px -14px rgba(14,84,80,.5)}
+.big-cta{font-size:16px;padding:15px 22px;border-radius:14px;box-shadow:0 8px 20px -8px rgba(14,84,80,.5);flex:1;justify-content:center;min-width:220px}
+.cta-sent{flex:1;font-weight:700;color:var(--ok);display:flex;align-items:center;gap:10px;font-size:14px}
+
+/* ---- studio: sim tweak slider rows ---- */
+.rng{display:flex;align-items:center;gap:10px;margin:6px 0}
+.rng span{font-size:12px;font-weight:600;color:rgba(30,42,42,.65);width:104px;flex:none}
+.rng input[type=range]{flex:1;accent-color:var(--teal)}
+
+/* =================== MOBILE: make the studio usable on phones =================== */
+@media(max-width:760px){
+  .dr-cta{top:0}
+  .big-cta{min-width:0}
+  /* studio becomes a vertical, scrollable stack */
+  .sfs-top{flex-wrap:wrap;gap:8px;padding:10px 12px}
+  .sfs-title{font-size:14px;order:1}
+  .sfs-top .linkbtn{order:2;margin-left:auto}
+  .seg-group{order:3;width:100%}
+  .seg{flex:1}
+  .sfs-body{flex-direction:column;overflow-y:auto}
+  /* stage first, sized to the viewport */
+  .sfs-stage{order:1;padding:10px;gap:8px}
+  .stage-wrap{height:46vh;flex:none}
+  .slide-nav{flex-wrap:wrap;gap:6px}
+  .slide-nav .snav{flex:1;min-width:0;padding:9px 8px}
+  .slide-nav .spacer{display:none}
+  /* slides become a horizontal filmstrip */
+  .sfs-slides{order:2;width:auto;flex-direction:row;align-items:center;gap:8px;overflow-x:auto;
+    border-right:none;border-bottom:1px solid rgba(255,255,255,.1);padding:10px 12px}
+  .sfs-slides .ss-title{display:none}
+  .slide-strip{flex-direction:row;margin-bottom:0;gap:8px}
+  .sthumb{white-space:nowrap;flex:none}
+  .sthumb .lbl{max-width:120px}
+  .addslide{margin-top:0;flex:none;white-space:nowrap}
+  /* panel below, full width */
+  .sfs-panel{order:3;width:auto;border-left:none;border-top:1px solid var(--line);max-height:none}
+  .pbody{max-height:42vh}
+  .case-lib{grid-template-columns:repeat(3,1fr)}
+  /* bottom record bar stays put and finger-friendly */
+  .sfs-bottom{flex-wrap:wrap;gap:10px;padding:12px}
+  .sfs-hint{display:none}
+  .rb-right{width:100%}
+  .rb-right .cta-d{flex:1;justify-content:center;padding:15px}
+  .brand-card{padding:20px}
+}
