@@ -43,7 +43,11 @@
     <button class="linkbtn" onclick="AV.closeStudio()">✕ Exit</button>
   </div>
   <div class="sfs-body">
-    <div class="sfs-slides"><div class="ss-title">Slides</div><div class="slide-strip" id="slideStrip"></div></div>
+    <div class="sfs-slides">
+      <div class="ss-title">Slides</div>
+      <div class="slide-strip" id="slideStrip"></div>
+      <button class="addslide" onclick="AV.addTextSlide()">+ Add text slide</button>
+    </div>
     <div class="sfs-stage">
       <div class="stage-wrap">
         <canvas id="stage" width="1280" height="720"></canvas>
@@ -58,6 +62,19 @@
         <span class="spacer"></span>
         <button class="snav" id="pipToggle" onclick="AV.cyclePip()">📹 Camera: bottom-right</button>
         <button class="snav" id="teleToggle" onclick="AV.toggleTele()">📝 Script: on</button>
+      </div>
+    </div>
+    <div class="sfs-panel">
+      <div class="ptabs">
+        <button class="ptab on" data-tab="edit" onclick="AV.tab('edit')">Edit slide</button>
+        <button class="ptab" data-tab="ba" onclick="AV.tab('ba')">Before &amp; afters</button>
+      </div>
+      <div class="pbody" id="tabEdit"></div>
+      <div class="pbody" id="tabBa" hidden>
+        <input class="search" id="baSearch" placeholder="Search before &amp; afters…" oninput="AV.filterBa(this.value)">
+        <div class="ba-lib" id="baLib"></div>
+        <label class="uploadcase">+ Upload a before &amp; after<input type="file" id="baUpload" accept="image/*" multiple hidden></label>
+        <div class="upnote">Pick two images — first is the <b>before</b>, second the <b>after</b>.</div>
       </div>
     </div>
   </div>

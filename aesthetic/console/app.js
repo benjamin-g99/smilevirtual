@@ -185,10 +185,10 @@
   function imgFrom(src){ const i=new Image(); i.src=src; return i; }
 
   async function openStudio(id){
-    st.id=id; st.idx=0; st.pip=0; st.tele=true;
+    st.id=id; st.idx=0; st.pip=0; st.tele=true; buildLibrary();
     const l=S.get(id); st.slides=await buildSlides(l);
     $('studioPatient').textContent='— '+name(l);
-    renderStrip(); updateSlide(); updatePip();
+    renderStrip(); renderBaLib(); tab('edit'); updateSlide(); updatePip();
     $('recUse').hidden=true; $('recDot').hidden=true; $('recVideo').classList.remove('review');
     $('recToggle').textContent='● Start recording'; $('teleToggle').textContent='📝 Script: on'; $('teleprompter').classList.remove('off');
     $('studio').classList.add('show');
@@ -196,17 +196,24 @@
     catch(e){ st.ready=false; st.pip=PIP.findIndex(p=>p.k==='off'); updatePip(); toast('No camera — you can still record slides + audio if mic is allowed.'); }
     startDraw();
   }
+  function imgFrom(src){ const i=new Image(); i.src=src; return i; }
+  function loadImg(src){ return new Promise(r=>{ if(!src){r(null);return;} const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=src; }); }
   async function buildSlides(l){
     const sc=scriptFor(l); const note=(...c)=>sc.filter(x=>c.some(k=>x.cue.toLowerCase().includes(k))).map(x=>x.text).join(' ');
     const procs=procLabels(l), plan=planFor(l);
     const photoSrcs=(l.photos||[]).filter(p=>p&&p.indexOf('data:')===0);
-    const imgs=await Promise.all(photoSrcs.map(src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src;})));
+    const imgs=(await Promise.all(photoSrcs.map(loadImg))).filter(Boolean);
+    // pick a before/after from the library matching the procedure region
+    const region=procs[0]?procs[0].region:null;
+    const match=(st.lib||[]).find(c=>c.region===region)||(st.lib||[])[0];
+    let before=null, after=null, caseLabel='A result like yours';
+    if(match){ before=await loadImg(match.before); after=await loadImg(match.after||match.before); caseLabel=match.label; }
     return [
-      {kind:'intro', name:name(l), procs:procs.map(p=>p.label), note:note('warm open','reflect')},
-      {kind:'photos', imgs:imgs.filter(Boolean), note:note('candid','approach')},
-      {kind:'cases', label:(procs[0]?procs[0].label:'Similar')+' — representative result', note:note('similar')},
-      {kind:'plan', plan, note:note('investment','approach')},
-      {kind:'next', deposit:cfg().depositAmount, note:note('next step','close')}
+      {kind:'intro', heading:name(l), sub:procs.map(p=>p.label).join(' · ')||'Consultation', note:note('warm open','reflect')},
+      {kind:'photos', heading:'Your photos', imgs, note:note('candid','approach')},
+      {kind:'cases', heading:caseLabel, before, after, note:note('similar')},
+      {kind:'plan', heading:'Your plan & investment', plan, note:note('investment','approach')},
+      {kind:'next', heading:'Reserve your consult', body:'Meet 1-on-1 to finalize your plan. Reserve your spot with a fully refundable deposit.', deposit:cfg().depositAmount, note:note('next step','close')}
     ];
   }
   function startDraw(){ cancelAnimationFrame(st.raf); const loop=()=>{ drawStage(); st.raf=requestAnimationFrame(loop); }; loop(); }
@@ -220,21 +227,25 @@
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,B.primary); g.addColorStop(1,shade(B.primary)); c.fillStyle=g; c.fillRect(0,0,W,H);
     c.textAlign='left'; if(!s) return;
     if(s.kind==='intro'){ c.fillStyle='rgba(255,255,255,.6)'; c.font='600 26px Plus Jakarta Sans'; c.fillText('Your personal video consultation',80,140);
-      c.fillStyle='#fff'; c.font='500 72px Fraunces'; c.fillText(s.name,78,235);
-      c.fillStyle=B.accent; c.font='600 30px Plus Jakarta Sans'; c.fillText(s.procs.join(' · ')||'Consultation',80,310);
+      c.fillStyle='#fff'; c.font='500 72px Fraunces'; c.fillText(s.heading||'',78,235);
+      c.fillStyle=B.accent; c.font='600 30px Plus Jakarta Sans'; c.fillText(s.sub||'Consultation',80,310);
       c.fillStyle='rgba(255,255,255,.7)'; c.font='500 26px Plus Jakarta Sans'; c.fillText('with '+cfg().surgeon.name+', '+cfg().surgeon.credential,80,H-70); }
-    else if(s.kind==='photos'){ title(c,'Your photos',B); if(s.imgs&&s.imgs.length){ const n=s.imgs.length,gap=40,aw=(W-160-gap*(n-1))/n; s.imgs.forEach((im,i)=>{ const x=80+i*(aw+gap),y=170,h=440; c.save(); rr(c,x,y,aw,h,18); c.clip(); cover(c,im,x,y,aw,h); c.restore(); stroke(c,x,y,aw,h,18); }); } else note(c,'Patient photos (this demo lead used placeholders).',W,H); }
-    else if(s.kind==='cases'){ title(c,'A result like yours',B); c.fillStyle=B.accent; c.font='600 26px Plus Jakarta Sans'; c.fillText(s.label,80,150);
-      const bw=(W-200)/2,y=185,h=420; casePanel(c,80,y,bw,h,'Before'); casePanel(c,120+bw,y,bw,h,'After');
-      c.fillStyle='rgba(255,255,255,.6)'; c.textAlign='center'; c.font='500 20px Plus Jakarta Sans'; c.fillText('Illustrative — individual results vary.',W/2,H-50); c.textAlign='left'; }
-    else if(s.kind==='plan'){ title(c,'Your plan & investment',B); let y=210; c.font='500 32px Plus Jakarta Sans';
-      s.plan.lines.forEach(p=>{ c.fillStyle='#fff'; c.fillText('• '+p.k,90,y); c.textAlign='right'; c.fillStyle=B.accent; c.fillText(p.v,W-90,y); c.textAlign='left'; y+=58; });
+    else if(s.kind==='photos'){ title(c,s.heading||'Your photos',B); if(s.imgs&&s.imgs.length){ const n=s.imgs.length,gap=40,aw=(W-160-gap*(n-1))/n; s.imgs.forEach((im,i)=>{ const x=80+i*(aw+gap),y=170,h=440; c.save(); rr(c,x,y,aw,h,18); c.clip(); cover(c,im,x,y,aw,h); c.restore(); stroke(c,x,y,aw,h,18); }); } else note(c,'Patient photos (this demo lead used placeholders).',W,H); }
+    else if(s.kind==='cases'){ title(c,s.heading||'A result like yours',B);
+      const bw=(W-200)/2,y=175,h=440; casePanel(c,80,y,bw,h,'Before',s.before); casePanel(c,120+bw,y,bw,h,'After',s.after);
+      c.fillStyle='rgba(255,255,255,.6)'; c.textAlign='center'; c.font='500 20px Plus Jakarta Sans'; c.fillText('Illustrative — individual results vary.',W/2,H-44); c.textAlign='left'; }
+    else if(s.kind==='plan'){ title(c,s.heading||'Your plan & investment',B); let y=210; c.font='500 32px Plus Jakarta Sans';
+      (s.plan.lines||[]).forEach(p=>{ c.fillStyle='#fff'; c.fillText('• '+p.k,90,y); c.textAlign='right'; c.fillStyle=B.accent; c.fillText(p.v||'',W-90,y); c.textAlign='left'; y+=58; });
       c.fillStyle='rgba(255,255,255,.9)'; c.font='600 26px Plus Jakarta Sans'; c.fillText('Financing from '+money(s.plan.financingMo)+'/mo',90,y+10); }
-    else if(s.kind==='next'){ title(c,'Reserve your consult',B); c.fillStyle='rgba(255,255,255,.9)'; c.font='400 30px Plus Jakarta Sans'; wrap(c,'Meet 1-on-1 to finalize your plan. Reserve your spot with a fully refundable deposit.',80,210,W-160,42);
-      c.fillStyle=B.accent; rr(c,80,H-170,460,72,16); c.fill(); c.fillStyle=B.primary; c.font='700 28px Plus Jakarta Sans'; c.fillText('Book consult · '+money(s.deposit)+' refundable',104,H-126); } }
+    else if(s.kind==='next'){ title(c,s.heading||'Reserve your consult',B); c.fillStyle='rgba(255,255,255,.9)'; c.font='400 30px Plus Jakarta Sans'; wrap(c,s.body||'',80,210,W-160,42);
+      c.fillStyle=B.accent; rr(c,80,H-170,480,72,16); c.fill(); c.fillStyle=B.primary; c.font='700 28px Plus Jakarta Sans'; c.fillText('Book consult · '+money(s.deposit)+' refundable',104,H-126); }
+    else if(s.kind==='text'){ title(c,s.heading||'',B); c.fillStyle='rgba(255,255,255,.92)'; c.font='400 30px Plus Jakarta Sans'; wrap(c,s.body||'',80,210,W-160,42); } }
   function title(c,t,B){ c.fillStyle='#fff'; c.font='500 52px Fraunces'; c.textAlign='left'; c.fillText(t,80,110); c.strokeStyle=B.accent; c.globalAlpha=.7; c.lineWidth=3; c.beginPath(); c.moveTo(82,128); c.lineTo(82+t.length*20,128); c.stroke(); c.globalAlpha=1; }
   function note(c,t,W,H){ c.fillStyle='rgba(255,255,255,.5)'; c.font='500 26px Plus Jakarta Sans'; c.textAlign='center'; wrap(c,t,W/2,H/2,W-300,36); c.textAlign='left'; }
-  function casePanel(c,x,y,w,h,lab){ c.save(); rr(c,x,y,w,h,18); c.clip(); const g=c.createLinearGradient(x,y,x,y+h); g.addColorStop(0,'#E7D6D2'); g.addColorStop(1,'#C9A9A4'); c.fillStyle=g; c.fillRect(x,y,w,h); c.fillStyle='rgba(74,47,80,.35)'; c.font='600 22px Plus Jakarta Sans'; c.textAlign='center'; c.fillText('photo',x+w/2,y+h/2); c.textAlign='left'; c.restore(); stroke(c,x,y,w,h,18); tag(c,x+14,y+14,lab); }
+  function casePanel(c,x,y,w,h,lab,img){ c.save(); rr(c,x,y,w,h,18); c.clip();
+    if(img&&img.complete&&img.naturalWidth){ cover(c,img,x,y,w,h); }
+    else { const g=c.createLinearGradient(x,y,x,y+h); g.addColorStop(0,'#E7D6D2'); g.addColorStop(1,'#C9A9A4'); c.fillStyle=g; c.fillRect(x,y,w,h); c.fillStyle='rgba(74,47,80,.35)'; c.font='600 22px Plus Jakarta Sans'; c.textAlign='center'; c.fillText('photo',x+w/2,y+h/2); c.textAlign='left'; }
+    c.restore(); stroke(c,x,y,w,h,18); tag(c,x+14,y+14,lab); }
   function cover(c,im,x,y,w,h){ if(!im||!im.complete||!im.naturalWidth)return; const ar=im.width/im.height,tar=w/h; let dw,dh; if(ar>tar){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;} c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
   function tag(c,x,y,t){ c.fillStyle='rgba(0,0,0,.5)'; const w=t.length*11+20; rr(c,x,y,w,30,8); c.fill(); c.fillStyle='#fff'; c.font='700 16px Plus Jakarta Sans'; c.textAlign='left'; c.fillText(t,x+10,y+21); }
   function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
@@ -242,10 +253,63 @@
   function wrap(c,t,x,y,maxw,lh){ const ws=String(t).split(' '); let line='',yy=y; ws.forEach(w=>{ const test=line+w+' '; if(c.measureText(test).width>maxw&&line){ c.fillText(line.trim(),x,yy); line=w+' '; yy+=lh; } else line=test; }); c.fillText(line.trim(),x,yy); }
   function shade(hex){ const n=parseInt(hex.replace('#',''),16); let r=Math.max(0,(n>>16)-26),g=Math.max(0,((n>>8)&255)-26),b=Math.max(0,(n&255)-26); return '#'+(r<<16|g<<8|b).toString(16).padStart(6,'0'); }
 
-  function renderStrip(){ const ic={intro:'👋',photos:'🖼️',cases:'✨',plan:'📋',next:'📅'}; const lb={intro:'Intro',photos:'Patient photos',cases:'Similar result',plan:'Plan & cost',next:'Book consult'};
-    $('slideStrip').innerHTML=st.slides.map((s,i)=>`<div class="sthumb ${i===st.idx?'cur':''}" onclick="AV.goSlide(${i})"><span class="si">${ic[s.kind]}</span>${lb[s.kind]}</div>`).join(''); }
-  function updateSlide(){ $('slideCount').textContent=(st.idx+1)+' / '+st.slides.length; document.querySelectorAll('.sthumb').forEach((e,i)=>e.classList.toggle('cur',i===st.idx)); const s=st.slides[st.idx]; $('teleprompter').innerHTML=s&&s.note?`<div class="tl"><b>Talking points</b>${esc(s.note)}</div>`:''; }
+  const KINDL={intro:'Intro',photos:'Patient photos',cases:'Before & after',plan:'Plan & cost',next:'Book consult',text:'Text slide'};
+  function renderStrip(){ const ic={intro:'👋',photos:'🖼️',cases:'✨',plan:'📋',next:'📅',text:'💬'};
+    $('slideStrip').innerHTML=st.slides.map((s,i)=>{ const lb=(s.kind==='cases'||s.kind==='text')?(s.heading||KINDL[s.kind]):KINDL[s.kind];
+      return `<div class="sthumb ${i===st.idx?'cur':''}" onclick="AV.goSlide(${i})"><span class="si">${ic[s.kind]}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lb)}</span>${st.slides.length>1?`<span class="rm" onclick="event.stopPropagation();AV.removeSlide(${i})">✕</span>`:''}</div>`; }).join(''); }
+  function updateSlide(){ $('slideCount').textContent=(st.idx+1)+' / '+st.slides.length; document.querySelectorAll('.sthumb').forEach((e,i)=>e.classList.toggle('cur',i===st.idx)); const s=st.slides[st.idx]; $('teleprompter').innerHTML=s&&s.note?`<div class="tl"><b>Talking points</b>${esc(s.note)}</div>`:''; renderEdit(); }
   function goSlide(i){ st.idx=Math.max(0,Math.min(st.slides.length-1,i)); updateSlide(); }
+
+  /* ----- slide editor + before/afters library ----- */
+  function tab(n){ document.querySelectorAll('.ptab').forEach(b=>b.classList.toggle('on',b.dataset.tab===n)); $('tabEdit').hidden=n!=='edit'; $('tabBa').hidden=n!=='ba'; }
+  function renderEdit(){ const s=st.slides[st.idx]; if(!s){ $('tabEdit').innerHTML=''; return; }
+    const txt=(p,l,v)=>`<div class="fld"><label>${l}</label><input type="text" value="${esc(v||'')}" oninput="AV.edit('${p}',this.value)"></div>`;
+    const area=(p,l,v,h)=>`<div class="fld"><label>${l}</label><textarea oninput="AV.edit('${p}',this.value)">${esc(v||'')}</textarea>${h?`<div class="hint">${h}</div>`:''}</div>`;
+    let html=`<span class="kindtag">${KINDL[s.kind]||s.kind}</span>`;
+    if(s.kind==='intro') html+=txt('heading','Patient name / title',s.heading)+txt('sub','Subhead (procedures)',s.sub);
+    else if(s.kind==='photos') html+=txt('heading','Heading',s.heading)+`<div class="hint">Photos come from the patient's submission.</div>`;
+    else if(s.kind==='cases') html+=txt('heading','Caption',s.heading)+`<div class="hint">Swap the before &amp; after from the “Before &amp; afters” tab.</div>`;
+    else if(s.kind==='plan') html+=txt('heading','Heading',s.heading)+area('_lines','Line items (Item | $range, one per line)',(s.plan.lines||[]).map(x=>x.k+' | '+x.v).join('\n'));
+    else if(s.kind==='next') html+=txt('heading','Heading',s.heading)+area('body','Body',s.body)+txt('_deposit','Refundable deposit ($)',s.deposit);
+    else if(s.kind==='text') html+=txt('heading','Heading',s.heading)+area('body','Body',s.body);
+    html+=area('note','Teleprompter note',s.note,'Shows over the video while you record this slide.');
+    html+=`<div class="editrow"><button class="cta-d ghost-d" onclick="AV.moveSlide(-1)">↑ Up</button><button class="cta-d ghost-d" onclick="AV.moveSlide(1)">↓ Down</button>${st.slides.length>1?`<button class="cta-d delbtn" onclick="AV.removeSlide(${st.idx})">Delete</button>`:''}</div>`;
+    $('tabEdit').innerHTML=html;
+  }
+  function edit(prop,val){ const s=st.slides[st.idx]; if(!s) return;
+    if(prop==='_lines'){ s.plan=s.plan||{lines:[],financingMo:155}; s.plan.lines=val.split('\n').filter(x=>x.trim()).map(line=>{ const [k,v]=line.split('|'); return {k:(k||'').trim(), v:(v||'').trim()}; }); }
+    else if(prop==='_deposit'){ s.deposit=+val||0; }
+    else s[prop]=val;
+    if(prop==='heading'||prop==='note') renderStrip();
+    if(prop==='note'){ const cur=st.slides[st.idx]; $('teleprompter').innerHTML=cur.note?`<div class="tl"><b>Talking points</b>${esc(cur.note)}</div>`:''; }
+    document.querySelectorAll('.sthumb').forEach((e,i)=>e.classList.toggle('cur',i===st.idx));
+  }
+  function addTextSlide(){ st.slides.push({kind:'text', heading:'New slide', body:'Add your talking point…', note:''}); renderStrip(); goSlide(st.slides.length-1); tab('edit'); }
+  function moveSlide(d){ const i=st.idx,j=i+d; if(j<0||j>=st.slides.length) return; const a=st.slides; [a[i],a[j]]=[a[j],a[i]]; st.idx=j; renderStrip(); updateSlide(); }
+  function removeSlide(i){ if(st.slides.length<=1) return; st.slides.splice(i,1); if(st.idx>=st.slides.length) st.idx=st.slides.length-1; renderStrip(); updateSlide(); }
+  function buildLibrary(){ st.lib=S.cases().map(c=>Object.assign({},c)); }
+  function filterBa(v){ st.libFilter=(v||'').toLowerCase(); renderBaLib(); }
+  function renderBaLib(){ const box=$('baLib'); if(!box) return;
+    const items=(st.lib||[]).filter(c=>!st.libFilter||(c.label+' '+(c.region||'')).toLowerCase().includes(st.libFilter));
+    box.innerHTML = items.length?'':'<div class="hint" style="grid-column:1/-1">No matching before & afters.</div>';
+    items.forEach(c=>{
+      const el=document.createElement('div'); el.className='ba-card'; el.title='Add “'+c.label+'” as a slide';
+      el.innerHTML=`<div class="thumbs"><img src="${c.before}"><img src="${c.after||c.before}"></div><div class="cl">${esc(c.label)}</div>`+(c.uploaded?`<button class="cx" title="Remove">✕</button>`:'');
+      el.querySelector('.thumbs').onclick=()=>addBaSlide(c); el.querySelector('.cl').onclick=()=>addBaSlide(c);
+      const cx=el.querySelector('.cx'); if(cx) cx.onclick=ev=>{ ev.stopPropagation(); S.removeCase(c.id); buildLibrary(); renderBaLib(); toast('Removed from library'); };
+      box.appendChild(el);
+    });
+    const up=$('baUpload'); if(up) up.onchange=onBaUpload;
+  }
+  async function addBaSlide(c){ const before=await loadImg(c.before), after=await loadImg(c.after||c.before);
+    st.slides.push({kind:'cases', heading:c.label, before, after, note:'Here’s a patient who started in a similar place — the kind of result we can aim for.'});
+    renderStrip(); goSlide(st.slides.length-1); tab('edit'); toast('Added “'+c.label+'” as a slide'); }
+  async function onBaUpload(e){ const files=[...e.target.files].slice(0,2); if(!files.length) return;
+    const urls=[]; for(const f of files){ urls.push(downscale(await loadImg(await fileToDataUrl(f)))); }
+    S.addCase({label:(files[0].name.replace(/\.[^.]+$/,'')||'Uploaded case').slice(0,24), region:'', before:urls[0], after:urls[1]||urls[0], uploaded:true});
+    buildLibrary(); renderBaLib(); toast(files.length>1?'Before & after saved':'Image saved (add a second for the “after”)'); e.target.value=''; }
+  function downscale(img,max){ max=max||560; if(!img||!img.width) return ''; const r=Math.min(1,max/Math.max(img.width,img.height)),w=Math.round(img.width*r),h=Math.round(img.height*r); const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); return c.toDataURL('image/jpeg',0.72); }
+  function fileToDataUrl(f){ return new Promise(r=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(f); }); }
   function prevSlide(){ goSlide(st.idx-1); } function nextSlide(){ goSlide(st.idx+1); }
   function cyclePip(){ st.pip=(st.pip+1)%PIP.length; updatePip(); } function updatePip(){ $('pipToggle').textContent='📹 Camera: '+PIP[st.pip].l; }
   function toggleTele(){ st.tele=!st.tele; $('teleprompter').classList.toggle('off',!st.tele); $('teleToggle').textContent='📝 Script: '+(st.tele?'on':'off'); }
@@ -284,6 +348,7 @@
   function bookFromEmail(id){ S.patch(id,{status:'booked', booking:{bookedAt:new Date().toISOString(), note:'Self-booked from video — deposit paid', deposit:cfg().depositAmount}}); closeEmail(); toast('🎉 Patient booked a consult + paid the deposit'); }
   function closeEmail(){ $('emailModal').classList.remove('show'); }
 
-  global.AV={ openLead, closeDrawer, openStudio, closeStudio, prevSlide, nextSlide, goSlide, cyclePip, toggleTele, toggleRecord, useRecording, sendVideo, simulate, markPaid, setValue, previewEmail, closeEmail, bookFromEmail };
+  global.AV={ openLead, closeDrawer, openStudio, closeStudio, prevSlide, nextSlide, goSlide, cyclePip, toggleTele, toggleRecord, useRecording, sendVideo, simulate, markPaid, setValue, previewEmail, closeEmail, bookFromEmail,
+    tab, edit, addTextSlide, moveSlide, removeSlide, filterBa };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

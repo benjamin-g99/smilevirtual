@@ -8,7 +8,7 @@
    ============================================================================= */
 (function (global) {
   'use strict';
-  const KEY='aesthetic.leads.v1', CFG='aesthetic.config.v1', SEEDED='aesthetic.seeded.v1';
+  const KEY='aesthetic.leads.v1', CFG='aesthetic.config.v1', CASES='aesthetic.cases.v1', SEEDED='aesthetic.seeded.v2';
 
   const uid=()=>'av_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
   const now=()=>new Date().toISOString();
@@ -17,18 +17,34 @@
   const listeners=new Set(); function notify(){ listeners.forEach(f=>{try{f()}catch(e){}}); }
   global.addEventListener&&global.addEventListener('storage',e=>{ if(e.key===KEY) notify(); });
 
-  /* ---- procedures catalog (illustrative US ballparks — demo only) ---- */
+  /* ---- procedures catalog (illustrative US ballparks — demo only) ----
+     `region` + `photos` drive treatment-specific photo requests in the flow. */
   const PROCEDURES=[
-    {id:'rhino', label:'Rhinoplasty', icon:'👃', from:8000, to:15000, mo:180, angles:['Front','Profile (side)']},
-    {id:'breast_aug', label:'Breast augmentation', icon:'💠', from:7000, to:12000, mo:155, angles:['Front','Side (3/4)']},
-    {id:'breast_lift', label:'Breast lift', icon:'🎈', from:8000, to:13000, mo:165, angles:['Front','Side (3/4)']},
-    {id:'tummy', label:'Tummy tuck', icon:'➖', from:9000, to:15000, mo:190, angles:['Front (abdomen)','Side (profile)']},
-    {id:'lipo', label:'Liposuction', icon:'✨', from:4000, to:9000, mo:120, angles:['Front (area)','Side (area)']},
-    {id:'facelift', label:'Facelift', icon:'⏳', from:12000, to:20000, mo:240, angles:['Front','Profile (side)']},
-    {id:'bleph', label:'Eyelid surgery', icon:'👁️', from:4000, to:7000, mo:110, angles:['Eyes — front','Eyes — closed']},
-    {id:'mommy', label:'Mommy makeover', icon:'🌸', from:15000, to:30000, mo:330, angles:['Front','Side (profile)']}
+    {id:'rhino', label:'Rhinoplasty', icon:'👃', from:8000, to:15000, mo:180, region:'face',
+      photos:[{label:'Front — relaxed',hint:'Face the camera, neutral expression, hair back'},{label:'Left profile',hint:'Turn 90° to show your left side'},{label:'Right profile',hint:'Turn 90° the other way'}]},
+    {id:'breast_aug', label:'Breast augmentation', icon:'💠', from:7000, to:12000, mo:155, region:'breast',
+      photos:[{label:'Front',hint:'Arms relaxed at your sides'},{label:'Left oblique',hint:'Turn slightly to your left'},{label:'Right oblique',hint:'Turn slightly to your right'}]},
+    {id:'breast_lift', label:'Breast lift', icon:'🎈', from:8000, to:13000, mo:165, region:'breast',
+      photos:[{label:'Front',hint:'Arms relaxed at your sides'},{label:'Left oblique',hint:'Turn slightly to your left'},{label:'Right oblique',hint:'Turn slightly to your right'}]},
+    {id:'tummy', label:'Tummy tuck', icon:'➖', from:9000, to:15000, mo:190, region:'body',
+      photos:[{label:'Front — abdomen',hint:'Standing, arms raised slightly'},{label:'Side profile',hint:'Full side view, relaxed'}]},
+    {id:'lipo', label:'Liposuction', icon:'✨', from:4000, to:9000, mo:120, region:'body',
+      photos:[{label:'Front — treatment area',hint:'The area you’d like refined'},{label:'Side — treatment area',hint:'Side view of the same area'}]},
+    {id:'facelift', label:'Facelift', icon:'⏳', from:12000, to:20000, mo:240, region:'face',
+      photos:[{label:'Front — relaxed',hint:'Neutral expression, hair back'},{label:'Left 3/4',hint:'Turn slightly to your left'},{label:'Right 3/4',hint:'Turn slightly to your right'}]},
+    {id:'bleph', label:'Eyelid surgery', icon:'👁️', from:4000, to:7000, mo:110, region:'face',
+      photos:[{label:'Eyes — open',hint:'Look straight ahead, relaxed'},{label:'Eyes — gently closed',hint:'Close your eyes softly'}]},
+    {id:'mommy', label:'Mommy makeover', icon:'🌸', from:15000, to:30000, mo:330, region:'body',
+      photos:[{label:'Front — torso',hint:'Standing, relaxed'},{label:'Side profile',hint:'Full side view'}]}
   ];
   const procById=(id)=>PROCEDURES.find(p=>p.id===id);
+  const DEFAULT_PHOTOS=[{label:'Front',hint:'Face the camera, good light'},{label:'Profile (side)',hint:'Turn to show your side'}];
+  // treatment-specific photo set for the selected procedures (deduped by label, capped)
+  function photoSet(ids){
+    const seen={}, out=[];
+    (ids||[]).map(procById).filter(Boolean).forEach(p=>(p.photos||[]).forEach(ph=>{ const k=ph.label.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(ph); } }));
+    return out.length?out.slice(0,4):DEFAULT_PHOTOS.slice();
+  }
 
   const DEFAULT_CONFIG={
     surgeon:{ name:'Dr. Elena Vance', credential:'MD, FACS', specialty:'Board-Certified Plastic Surgeon',
@@ -59,10 +75,30 @@
     return { score, tier, value, flags };
   }
 
+  /* ---- before & afters library (string-based SVG placeholders; no canvas so it
+     works in any environment. Uploaded pairs are stored as data URLs.) ---- */
+  function svgTile(label, c1, c2, fg){
+    const svg="<svg xmlns='http://www.w3.org/2000/svg' width='320' height='240'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='"+c1+"'/><stop offset='1' stop-color='"+c2+"'/></linearGradient></defs><rect width='320' height='240' fill='url(%23g)'/><text x='160' y='128' font-family='sans-serif' font-size='15' fill='"+fg+"' text-anchor='middle'>"+label+"</text></svg>";
+    return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+  }
+  function ba(label, region, dim, bright){ return { before:svgTile(label+' · before', dim, '#9a8f93', 'rgba(255,255,255,.65)'), after:svgTile(label+' · after', bright, '#d8b7b1', 'rgba(74,47,80,.65)') }; }
+  function SEED_CASES(){
+    return [
+      Object.assign({id:'bc_rhino', label:'Rhinoplasty — 3 mo', region:'face'}, ba('Rhinoplasty','face','#b9adb2','#f0e2df')),
+      Object.assign({id:'bc_face', label:'Facelift — 6 wks', region:'face'}, ba('Facelift','face','#b3a7ad','#efe1de')),
+      Object.assign({id:'bc_breast', label:'Breast aug — 6 wks', region:'breast'}, ba('Breast aug','breast','#b7abb0','#f1e4e1')),
+      Object.assign({id:'bc_tummy', label:'Tummy tuck — 3 mo', region:'body'}, ba('Tummy tuck','body','#b5a9af','#eee0dd')),
+      Object.assign({id:'bc_lipo', label:'Lipo — 8 wks', region:'body'}, ba('Liposuction','body','#bbafb4','#f2e5e2'))
+    ];
+  }
+
   const AestheticStore={
-    PROCEDURES, procById,
+    PROCEDURES, procById, photoSet,
     config(){ try{ const c=JSON.parse(localStorage.getItem(CFG)); return c?Object.assign({},DEFAULT_CONFIG,c):DEFAULT_CONFIG; }catch(e){ return DEFAULT_CONFIG; } },
     saveConfig(c){ localStorage.setItem(CFG,JSON.stringify(c)); notify(); },
+    cases(){ try{ const c=JSON.parse(localStorage.getItem(CASES)); return Array.isArray(c)?c:SEED_CASES(); }catch(e){ return SEED_CASES(); } },
+    addCase(c){ const l=this.cases(); l.unshift(Object.assign({id:'bc_'+Math.random().toString(36).slice(2,7)},c)); localStorage.setItem(CASES,JSON.stringify(l)); notify(); return l[0]; },
+    removeCase(id){ localStorage.setItem(CASES,JSON.stringify(this.cases().filter(c=>c.id!==id))); notify(); },
     onChange(fn){ listeners.add(fn); return ()=>listeners.delete(fn); },
     all(){ return read().map(l=>Object.assign({},l,{qual:qualify(l)})).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)); },
     get(id){ const l=read().find(x=>x.id===id); return l?Object.assign({},l,{qual:qualify(l)}):null; },
@@ -82,7 +118,7 @@
     },
     patch(id,fields){ const leads=read(); const l=leads.find(x=>x.id===id); if(!l)return null; Object.assign(l,fields,{updatedAt:now()}); write(leads); return l; },
 
-    reset(){ [KEY,SEEDED].forEach(k=>localStorage.removeItem(k)); this.seed(); notify(); },
+    reset(){ [KEY,SEEDED,CASES].forEach(k=>localStorage.removeItem(k)); this.seed(); notify(); },
     seed(force){ if(!force&&localStorage.getItem(SEEDED)) return; localStorage.setItem(KEY,JSON.stringify(SEED())); localStorage.setItem(SEEDED,'1'); notify(); },
     ensureSeeded(){ if(!localStorage.getItem(SEEDED)) this.seed(); }
   };

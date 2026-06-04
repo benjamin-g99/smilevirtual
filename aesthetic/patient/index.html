@@ -71,22 +71,7 @@
 
       <div class="guide" id="photoGuide"><!-- rendered by JS per procedure --></div>
 
-      <div class="shots">
-        <div class="shot" id="shot0">
-          <span class="badge">✓</span>
-          <canvas class="preview" width="180" height="240"></canvas>
-          <div class="empty"><span class="big">📷</span><span class="tag" id="shotTag0">Front</span></div>
-          <div class="tag ovl" style="display:none" id="shotOvl0">Front</div>
-          <div class="uploading"><div class="ubar"><i></i></div><span class="ulabel"><span class="spin"></span><span class="upct">Uploading…</span></span></div>
-        </div>
-        <div class="shot" id="shot1">
-          <span class="badge">✓</span>
-          <canvas class="preview" width="180" height="240"></canvas>
-          <div class="empty"><span class="big">📷</span><span class="tag" id="shotTag1">Profile</span></div>
-          <div class="tag ovl" style="display:none" id="shotOvl1">Profile</div>
-          <div class="uploading"><div class="ubar"><i></i></div><span class="ulabel"><span class="spin"></span><span class="upct">Uploading…</span></span></div>
-        </div>
-      </div>
+      <div class="shots" id="shots"><!-- treatment-specific shot tiles rendered by JS --></div>
 
       <label class="consent"><input type="checkbox" id="consent" onchange="updatePhotoCtas()">
         <span>I consent to share these confidential photos with <span class="docn">Dr. Vance</span> for a private medical review.</span></label>
