@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetic Virtual — Plastic Surgery Consultation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="stage-label">Aesthetic Virtual · Plastic surgery &nbsp;·&nbsp; <a href="../">Concept hub →</a></div>
+
+<div class="phone">
+  <div class="screen-wrap">
+
+    <div class="progress hidden" id="progress">
+      <button class="back invis" id="backBtn" onclick="goBack()">‹</button>
+      <div class="bar"><i id="barFill"></i></div>
+    </div>
+
+    <!-- WELCOME -->
+    <section class="screen active" data-key="welcome">
+      <div class="doc">
+        <div class="av" id="docAv">EV</div>
+        <div class="meta">
+          <b id="docName">Dr. Elena Vance</b>
+          <span class="role" id="docRole">Board-Certified Plastic Surgeon · MD, FACS</span>
+          <span class="stars"><span class="s">★★★★★</span><b id="docRating">4.9</b> · <span id="docReviews">840</span> reviews</span>
+        </div>
+      </div>
+      <div class="credline"><span class="facts">Board-certified · 4,000+ procedures · financing available</span></div>
+
+      <div class="eyebrow" style="margin-top:16px">Free Video Consultation</div>
+      <h1>A personal consult on <em>your procedure</em> — from home.</h1>
+      <p class="sub">Tell <span class="docn">Dr. Vance</span> what you're considering and share a few photos. She'll review your case and record a personal video — candid guidance, before &amp; afters, and what it would realistically take.</p>
+
+      <div class="steps">
+        <div class="step"><div class="n">1</div><div><b>Choose your procedure</b><p>What you're considering — pick any that apply.</p></div></div>
+        <div class="step"><div class="n">2</div><div><b>Share a few photos</b><p>Private, confidential, for medical review only.</p></div></div>
+        <div class="step"><div class="n">3</div><div><b>Get your personal video</b><p><span class="docn">Dr. Vance</span> reviews your case and records for you.</p></div></div>
+      </div>
+
+      <div class="trust">
+        <span class="pill">✓ 100% confidential</span>
+        <span class="pill">✓ Financing available</span>
+        <span class="pill">✓ Board-certified surgeon</span>
+      </div>
+      <button class="cta" onclick="next()">Start my free consultation</button>
+    </section>
+
+    <!-- PROCEDURE -->
+    <section class="screen" data-key="procedure">
+      <div class="eyebrow">Step 1 · Your procedure</div>
+      <h1>What are you <em>considering?</em></h1>
+      <p class="sub">Pick anything that interests you — this helps <span class="docn">Dr. Vance</span> tailor your consultation.</p>
+      <div class="chips" id="procChips"><!-- rendered by JS --></div>
+      <div class="ordiv">anything specific?</div>
+      <div class="gtext"><textarea id="goalText" placeholder="In your own words — what you'd love to change, and why now…" oninput="updateProcCta()"></textarea></div>
+      <div class="grow"></div>
+      <button class="cta" id="procCta" onclick="next()" disabled>Continue</button>
+    </section>
+
+    <!-- PHOTOS -->
+    <section class="screen cam-intro" data-key="photos">
+      <div class="eyebrow">Step 2 · Your photos</div>
+      <h1>Share a few <em>private photos</em></h1>
+      <p class="sub" id="photoSub">Two quick photos help the surgeon assess your case. They're confidential and used only for your medical review.</p>
+
+      <div class="guide" id="photoGuide"><!-- rendered by JS per procedure --></div>
+
+      <div class="shots">
+        <div class="shot" id="shot0">
+          <span class="badge">✓</span>
+          <canvas class="preview" width="180" height="240"></canvas>
+          <div class="empty"><span class="big">📷</span><span class="tag" id="shotTag0">Front</span></div>
+          <div class="tag ovl" style="display:none" id="shotOvl0">Front</div>
+          <div class="uploading"><div class="ubar"><i></i></div><span class="ulabel"><span class="spin"></span><span class="upct">Uploading…</span></span></div>
+        </div>
+        <div class="shot" id="shot1">
+          <span class="badge">✓</span>
+          <canvas class="preview" width="180" height="240"></canvas>
+          <div class="empty"><span class="big">📷</span><span class="tag" id="shotTag1">Profile</span></div>
+          <div class="tag ovl" style="display:none" id="shotOvl1">Profile</div>
+          <div class="uploading"><div class="ubar"><i></i></div><span class="ulabel"><span class="spin"></span><span class="upct">Uploading…</span></span></div>
+        </div>
+      </div>
+
+      <label class="consent"><input type="checkbox" id="consent" onchange="updatePhotoCtas()">
+        <span>I consent to share these confidential photos with <span class="docn">Dr. Vance</span> for a private medical review.</span></label>
+
+      <input type="file" id="fileFallback" accept="image/*" capture="user" style="display:none">
+      <div class="grow"></div>
+      <button class="cta" id="camBtn" onclick="openCamera()">Open camera</button>
+      <button class="cta" id="photoNext" onclick="next()" style="display:none" disabled>Use these photos →</button>
+      <button class="cta ghost" id="retakeBtn" onclick="openCamera()" style="display:none">Retake photos</button>
+    </section>
+
+    <!-- QUESTIONS (qualification) -->
+    <section class="screen" data-key="questions">
+      <div class="eyebrow">A few questions</div>
+      <h1>Help <span class="docn">Dr. Vance</span> <em>prepare</em></h1>
+      <p class="sub">This helps her give you realistic, useful guidance in your video.</p>
+
+      <div class="q">
+        <div class="qhead"><span class="qlabel">How soon are you hoping to have your procedure?</span></div>
+        <div class="opts" data-q="timeline">
+          <div class="opt">As soon as possible</div>
+          <div class="opt">Within 1–3 months</div>
+          <div class="opt">3–6 months</div>
+          <div class="opt">Just researching</div>
+        </div>
+      </div>
+
+      <div class="q">
+        <div class="qhead"><span class="qlabel">How are you thinking about investment?</span></div>
+        <div class="opts" data-q="budget">
+          <div class="opt" data-val="ready">I have a budget set aside</div>
+          <div class="opt" data-val="financing">I'd like to explore financing</div>
+          <div class="opt" data-val="exploring">Just exploring costs for now</div>
+        </div>
+        <div class="finhint" id="finHint">💳 Procedures often start around <b id="finFrom">$155/mo</b> with financing partners like Cherry &amp; CareCredit.</div>
+      </div>
+
+      <div class="q twocol">
+        <div>
+          <div class="qhead"><span class="qlabel">Do you smoke?</span></div>
+          <div class="opts mini" data-q="smoker"><div class="opt" data-val="no">No</div><div class="opt" data-val="yes">Yes</div></div>
+        </div>
+        <div>
+          <div class="qhead"><span class="qlabel">Prior surgery in this area?</span></div>
+          <div class="opts mini" data-q="priorSurgery"><div class="opt" data-val="no">No</div><div class="opt" data-val="yes">Yes</div></div>
+        </div>
+      </div>
+
+      <div class="grow"></div>
+      <button class="cta" onclick="next()">Continue</button>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="screen" data-key="contact">
+      <div class="eyebrow">Last step</div>
+      <h1>Where should <span class="docn">Dr. Vance</span> send your <em>video consultation?</em></h1>
+      <p class="sub">Your case is ready for review. She'll personally record your video — candid guidance, similar before/afters, and financing options.</p>
+
+      <div class="summary" id="contactSummary"></div>
+
+      <div class="field"><label>First name</label><input id="fname" placeholder="Jordan" oninput="validateForm()"></div>
+      <div class="field"><label>Email address</label><input id="email" type="email" placeholder="you@email.com" oninput="validateForm()"></div>
+      <div class="field"><label>Phone number</label><input id="phone" placeholder="(555) 000-0000" oninput="validateForm()"></div>
+
+      <div class="privacy"><span class="lk">🔒</span><span>Private &amp; HIPAA-minded. We only use this to send your consultation and never share it.</span></div>
+      <div class="asktrust"><span class="ava-sm" id="docAvSm">EV</span><span>Reviewed personally by <span class="docn">Dr. Vance</span>, MD, FACS</span></div>
+
+      <div class="grow"></div>
+      <button class="cta" id="submitCta" onclick="submitForm()" disabled>Get my video consultation</button>
+    </section>
+
+    <!-- CONFIRM -->
+    <section class="screen confirm" data-key="confirm">
+      <div class="confetti" id="confetti"></div>
+      <div class="conf-av"><span id="docAvConf">EV</span><div class="tick">✓</div></div>
+      <h1>You're all set, <em id="confName">there</em>!</h1>
+      <p class="sub"><span class="docn">Dr. Vance</span> will personally review your case and record your video consultation. Here's what happens next.</p>
+
+      <div class="next">
+        <div class="item"><div class="d"></div><div><b>Dr. Vance reviews your case</b><p>A board-certified surgeon — not a bot — studies your photos and goals.</p></div></div>
+        <div class="item"><div class="d"></div><div><b>Your personal video arrives</b><p>Candid guidance, before/afters of similar cases, and a realistic plan. Usually within 2–3 days.</p></div></div>
+        <div class="item"><div class="d"></div><div><b>Book your consult — financing ready</b><p>Reserve a virtual or in-person consult with a refundable <b id="depositLine">$250</b> deposit, and see your financing options.</p></div></div>
+      </div>
+      <div class="grow"></div>
+      <button class="cta ghost" onclick="restart()">↺ Restart demo</button>
+    </section>
+
+    <!-- CAMERA -->
+    <div class="viewport" id="viewport">
+      <div class="vfeed">
+        <video id="camVideo" playsinline autoplay muted></video>
+        <div class="grain"></div>
+        <div class="vguide" id="vguide"></div>
+        <div class="vhint" id="vhint">Center yourself in the frame</div>
+        <div class="vtop"><b id="camTitle">Photo 1 of 2</b><button class="vside" onclick="closeCamera()">✕</button></div>
+        <div class="flash" id="flash"></div>
+      </div>
+      <div class="vbar">
+        <button class="vside" onclick="closeCamera()">⤺</button>
+        <button class="shutter" onclick="capture()"></button>
+        <span class="vside" style="opacity:0">⟳</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="devnote" id="devnote">
+  <div class="h"><span class="dot"></span> Lead capture <span class="muted">— saves to the Aesthetic console + qualifies</span></div>
+  <div id="devbody"><span class="muted">// waiting for a completed consult…</span></div>
+</div>
+
+<script src="../store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
