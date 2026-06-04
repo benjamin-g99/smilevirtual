@@ -396,3 +396,58 @@ h3{font-family:var(--display);font-weight:500;font-size:18px;color:var(--teal-de
 .drsim-h .g{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--teal);font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 
 @media(max-width:760px){ .setgrid{grid-template-columns:1fr} .grid2{grid-template-columns:1fr} .frow{grid-template-columns:96px 1fr 38px;gap:8px} .fdrop{display:none} }
+
+/* =================== DESIGN POLISH: Performance + Settings =================== */
+/* panel headers with icon chips */
+.panel h3{display:flex;align-items:center;gap:10px}
+.ph-ic{width:30px;height:30px;border-radius:9px;background:var(--teal-soft);display:inline-grid;place-items:center;font-size:15px;flex:none}
+.panel{border-radius:18px;box-shadow:0 10px 30px -20px rgba(14,84,80,.45);transition:box-shadow .2s}
+
+/* KPI hero row */
+.kpirow{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.metric.kpi{position:relative;overflow:hidden;border-radius:18px;padding:20px}
+.metric.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--teal),var(--gold))}
+.metric.kpi.alert::before{background:linear-gradient(90deg,var(--coral),var(--gold))}
+.kpi-ic{width:34px;height:34px;border-radius:10px;background:var(--teal-soft);display:grid;place-items:center;font-size:17px;margin-bottom:12px}
+.metric.kpi.alert .kpi-ic{background:var(--coral-soft)}
+.metric .big{font-weight:500;letter-spacing:-.01em}
+
+/* funnel chart refinements */
+.ffill{background:linear-gradient(90deg,var(--teal),#1d7a73);box-shadow:0 2px 8px -3px rgba(14,84,80,.6)}
+.frow:hover .ffill{filter:brightness(1.05)}
+.flabel{display:flex;align-items:center;gap:8px}
+.flabel::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--teal);flex:none;opacity:.5}
+
+/* engagement / conversion kpi tiles */
+.kpis > div{background:var(--cream);border-radius:12px;padding:13px 10px;transition:.15s}
+.kpis > div:hover{background:var(--teal-soft)}
+
+/* by-source table */
+.funnel{border-collapse:separate;border-spacing:0}
+.funnel th{position:sticky;top:0}
+.funnel tr:nth-child(even) td{background:rgba(14,84,80,.025)}
+.funnel tr:hover td{background:var(--teal-soft)}
+.funnel td{border-bottom:1px solid var(--line)}
+.funnel td:not(.src){font-variant-numeric:tabular-nums}
+.funnel .conv{color:#1F6E58}
+
+/* settings cards */
+.sset{display:flex;flex-direction:column}
+.seth{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px}
+.setic{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--teal-soft),#d3e6e2);display:grid;place-items:center;font-size:19px;flex:none;box-shadow:inset 0 0 0 1px rgba(14,84,80,.06)}
+.seth-t h3{font-size:17px;margin-bottom:2px}
+.seth-t .ph-ic{display:none}
+.sset .sbody{margin-top:14px}
+.sset h3{display:block}
+.sfield input,.sset input,.sset select,.sfield textarea{transition:border-color .15s, box-shadow .15s}
+.sfield input:focus,.sset input:focus,.sset textarea:focus,.sset select:focus{box-shadow:0 0 0 3px var(--teal-soft)}
+.sfield > span{color:rgba(30,42,42,.45)}
+.staffrow,.linkrow,.qrow{background:var(--cream);border-radius:12px;padding:9px 10px;margin-bottom:8px}
+.staffrow:hover,.linkrow:hover,.qrow:hover{background:var(--teal-soft)}
+.staffrow input,.linkrow input,.qrow input,.qrow select{background:#fff}
+.clicks{align-self:center}
+.pagelinks .cta-d{border-radius:12px;box-shadow:0 6px 16px -10px rgba(14,84,80,.5)}
+.paidbox{border:1px solid var(--line)}
+
+/* nav active pill gets a subtle glow */
+.navbtn.active{box-shadow:inset 0 -2px 0 var(--gold)}

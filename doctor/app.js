@@ -148,12 +148,13 @@
       ['Revenue (attributed)', money(cv.revenue), cv.roas!=null?(cv.roas+'× ROAS'):''],
       ['Video view rate', a.videos.viewRate+'%', a.videos.avgWatchPct+'% avg watched']
     ];
-    let html = `<div class="metrics">`+kpis.map(([l,v,sub,alert])=>
-      `<div class="metric ${alert?'alert':''}"><div class="big">${v}</div><div class="lbl">${l}</div>${sub?`<div class="msub">${esc(sub)}</div>`:''}</div>`).join('')+`</div>`;
+    const kicons=['⏱','📅','💳','💰','▶'];
+    let html = `<div class="metrics kpirow">`+kpis.map(([l,v,sub,alert],i)=>
+      `<div class="metric kpi ${alert?'alert':''}"><div class="kpi-ic">${kicons[i]}</div><div class="big">${v}</div><div class="lbl">${l}</div>${sub?`<div class="msub">${esc(sub)}</div>`:''}</div>`).join('')+`</div>`;
 
     // FUNNEL with drop-off
     const f0 = a.funnel[0].count||1;
-    html += `<div class="panel"><h3>Conversion funnel</h3><p class="muted small">Where people advance — and where you lose them. % is of everyone who started.</p>
+    html += `<div class="panel"><h3><span class="ph-ic">🫥</span>Conversion funnel</h3><p class="muted small">Where people advance — and where you lose them. % is of everyone who started.</p>
       <div class="funnelchart">`+
       a.funnel.map((s,i)=>{
         const w = Math.round(s.count/f0*100);
@@ -166,7 +167,7 @@
     // ENGAGEMENT
     const v=a.videos;
     html += `<div class="grid2">
-      <div class="panel"><h3>Video engagement</h3>
+      <div class="panel"><h3><span class="ph-ic">▶</span>Video engagement</h3>
         <div class="kpis">
           <div><b>${v.sent}</b><span>videos sent</span></div>
           <div><b>${v.viewed}</b><span>watched (${v.viewRate}%)</span></div>
@@ -176,7 +177,7 @@
         </div>
         <p class="muted small" style="margin-top:10px">Watch-rate & completion are your strongest leading indicators of a booking — chase the sent-not-viewed segment from the queue.</p>
       </div>
-      <div class="panel"><h3>Conversion</h3>
+      <div class="panel"><h3><span class="ph-ic">💰</span>Conversion</h3>
         <div class="kpis">
           <div><b>${cv.leadToBooked}%</b><span>lead → booked</span></div>
           <div><b>${cv.bookedToPaid}%</b><span>booked → paid</span></div>
@@ -188,7 +189,7 @@
       </div></div>`;
 
     // BY SOURCE — full economics
-    html += `<div class="panel"><h3>By ad source — full economics</h3>
+    html += `<div class="panel"><h3><span class="ph-ic">📊</span>By ad source — full economics</h3>
       <p class="muted small">Spend is set in Settings. This is the table that decides where the next dollar goes.</p>
       <table class="funnel"><tr><th>Source</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Sent</th><th>Viewed</th><th>Booked</th><th>Paid</th><th>Revenue</th><th>CPA</th><th>ROAS</th></tr>`+
       a.sources.map(r=>`<tr>
@@ -203,7 +204,9 @@
 
   /* ---------- SETTINGS ---------- */
   function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
-  function scard(title, sub, body){ return `<div class="panel sset"><h3>${esc(title)}</h3>${sub?`<p class="muted small">${sub}</p>`:''}<div class="sbody">${body}</div></div>`; }
+  const SET_ICONS={'Practice & doctor':'🦷','Team & permissions':'👥','Intake questions':'❓','Tracking & analytics':'📈','Reviews & ratings':'⭐','Landing page copy':'🌐','Ad spend (for ROAS)':'💸','Link-in-bio links':'🔗','Your public pages':'🚀'};
+  function scard(title, sub, body){ const ic=SET_ICONS[title]||'⚙️';
+    return `<div class="panel sset"><div class="seth"><span class="setic">${ic}</span><div class="seth-t"><h3>${esc(title)}</h3>${sub?`<p class="muted small">${sub}</p>`:''}</div></div><div class="sbody">${body}</div></div>`; }
   function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="DoctorApp.cfg('${path}',this.value)"></label>`; }
 
   function renderSettings(){
