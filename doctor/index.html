@@ -65,18 +65,40 @@
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer"><!-- filled by JS --></aside>
 
-<!-- ============ RECORDER MODAL ============ -->
+<!-- ============ CONSULT STUDIO (presentation recorder) ============ -->
 <div class="modal" id="recModal">
-  <div class="modal-card rec-card">
-    <div class="rec-stage">
-      <video id="recVideo" playsinline autoplay muted></video>
-      <div class="teleprompter" id="teleprompter"></div>
-      <div class="rec-dot" id="recDot" hidden>● REC <span id="recTime">0:00</span></div>
+  <div class="modal-card studio-card">
+    <div class="studio">
+      <div class="studio-main">
+        <div class="stage-wrap">
+          <canvas id="stage" width="1280" height="720"></canvas>
+          <video id="recVideo" playsinline autoplay muted></video>
+          <div class="rec-dot" id="recDot" hidden>● REC <span id="recTime">0:00</span></div>
+          <div class="teleprompter" id="teleprompter"></div>
+        </div>
+        <div class="slide-nav">
+          <button class="snav" onclick="DoctorApp.prevSlide()">‹</button>
+          <span id="slideCount">1 / 1</span>
+          <button class="snav" onclick="DoctorApp.nextSlide()">›</button>
+          <span class="spacer"></span>
+          <button class="snav" id="pipToggle" onclick="DoctorApp.cyclePip()">📹 Camera: bottom-right</button>
+          <button class="snav" id="teleToggle" onclick="DoctorApp.toggleTele()">📝 Script: on</button>
+        </div>
+      </div>
+      <aside class="studio-side">
+        <div class="ss-title">Slides <span>drag-free; click to jump</span></div>
+        <div class="slide-strip" id="slideStrip"></div>
+        <div class="ss-title">Your case library <span>before / afters</span></div>
+        <div class="case-lib" id="caseLib"></div>
+        <label class="uploadcase">+ Upload a case<input type="file" id="caseUpload" accept="image/*" multiple hidden></label>
+      </aside>
     </div>
     <div class="rec-bar">
       <button class="linkbtn" onclick="DoctorApp.closeRecorder()">Cancel</button>
-      <button class="cta-d" id="recToggle" onclick="DoctorApp.toggleRecord()">● Start recording</button>
-      <button class="cta-d ghost-d" id="recUse" onclick="DoctorApp.useRecording()" hidden>Use this take →</button>
+      <div class="rb-right">
+        <button class="cta-d" id="recToggle" onclick="DoctorApp.toggleRecord()">● Start recording</button>
+        <button class="cta-d ghost-d" id="recUse" onclick="DoctorApp.useRecording()" hidden>Use this take →</button>
+      </div>
     </div>
   </div>
 </div>

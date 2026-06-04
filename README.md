@@ -75,8 +75,15 @@ roles in the top bar.
 - **Consult workspace** (drawer): photos, goals, intake answers, and an
   **AI-drafted, personalized video script** generated from the intake — so the
   doctor riffs instead of composes (the single biggest lever on time-to-send).
-- **In-browser recording** with the script as a **teleprompter**, real
-  `MediaRecorder` capture, then one-tap send.
+- **Consult Studio** — a presentation recorder, not a talking-head selfie. The
+  doctor presents a **slide deck auto-built from the case** (intro → patient
+  photos → smile preview → recommended plan) with their **webcam as a
+  picture-in-picture** overlay (cyclable corners / large / full talking-head),
+  navigating slides live. They drop in **before/after slides from their own case
+  library** (seeded + uploadable — "here's someone just like you"). The slides +
+  camera are composited onto a canvas and recorded with mic via `captureStream`,
+  so the output is a reusable presentation video. Script overlays as a per-slide
+  teleprompter.
 - **Patient closing-page preview** — what the patient receives: the video, the
   before/after sim slider, a ballpark plan + financing, and a **one-tap
   self-book** button (which flips the lead to Booked).

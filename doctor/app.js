@@ -201,7 +201,7 @@
             ${script.lines.map(ln=>`<div class="scriptline"><div class="cue">${esc(ln.cue)}</div><div class="tx">${esc(ln.text)}</div></div>`).join('')}
           </div>
           <div class="scripttools">
-            <button class="cta-d" onclick="DoctorApp.openRecorder('${id}')">${hasRec?'⟳ Re-record video':'● Record video'}</button>
+            <button class="cta-d" onclick="DoctorApp.openRecorder('${id}')">${hasRec?'⟳ Re-record in studio':'🎬 Open consult studio'}</button>
             <button class="ghost-d cta-d" onclick="DoctorApp.copyScript('${id}')">Copy script</button>
             ${hasRec?`<button class="ghost-d cta-d" onclick="DoctorApp.previewEmail('${id}')">Preview patient email</button>`:''}
           </div>
@@ -284,52 +284,251 @@
     toast(map[kind]);
   }
 
-  /* ---------- RECORDER (real getUserMedia + MediaRecorder) ---------- */
-  let recStream=null, recorder=null, chunks=[], recTimer=null, recStart=0, recLeadId=null, lastBlobUrl=null;
+  /* ---------- CONSULT STUDIO (slides + PiP camera + case library) ----------
+     The doctor presents the patient's case like a screenshare with their webcam
+     picture-in-picture. We composite slides + the camera onto a canvas and
+     record THAT canvas + mic — so the output is a reusable presentation video. */
+  const PIP_MODES=[
+    {k:'br', label:'bottom-right'},{k:'bl', label:'bottom-left'},
+    {k:'br-lg', label:'large'},{k:'full', label:'full (talking head)'},{k:'off', label:'hidden'}
+  ];
+  let studio = { id:null, lead:null, slides:[], idx:0, raf:0, pip:0, tele:true,
+    camStream:null, recorder:null, chunks:[], recTimer:null, recStart:0, camReady:false };
+  let caseLibrary = null;            // lazily built {id,label,before:Image,after:Image,single?}
+  const stage = ()=>document.getElementById('stage');
+  const sctx  = ()=>stage().getContext('2d');
+
+  function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+
   async function openRecorder(id){
-    recLeadId=id;
-    const l=SmileStore.get(id); const script=ScriptGen.generate(l,cfg());
-    $('#teleprompter').innerHTML = script.lines.map(ln=>`<div class="tl"><b>${esc(ln.cue)}</b>${esc(ln.text)}</div>`).join('');
+    studio.id=id; studio.lead=SmileStore.get(id); studio.idx=0; studio.pip=0; studio.tele=true;
+    if(!caseLibrary) caseLibrary = buildCaseLibrary();
+    studio.slides = await buildSlides(studio.lead);
+    renderStrip(); renderCaseLib();
     $('#recModal').classList.add('show');
-    $('#recUse').hidden=true; $('#recDot').hidden=true;
+    $('#recUse').hidden=true; $('#recDot').hidden=true; $('#recVideo').classList.remove('review');
     $('#recToggle').textContent='● Start recording'; $('#recToggle').disabled=false;
+    $('#teleToggle').textContent='📝 Script: on'; $('#teleprompter').classList.remove('off');
+    updatePipLabel(); updateSlideUi();
+    // camera + mic (the PiP + the audio track we record)
     try{
-      recStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:true});
-      $('#recVideo').srcObject=recStream; $('#recVideo').muted=true;
+      studio.camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:true});
+      $('#recVideo').srcObject=studio.camStream; $('#recVideo').muted=true; await $('#recVideo').play().catch(()=>{});
+      studio.camReady=true;
     }catch(e){
-      $('#recToggle').disabled=true;
-      toast('Camera/mic unavailable in this browser — recording needs device permissions.');
+      studio.camReady=false; studio.pip=PIP_MODES.findIndex(m=>m.k==='off'); updatePipLabel();
+      toast('No camera/mic — you can still record the slides (audio needs mic permission).');
+    }
+    startDraw();
+  }
+
+  /* ----- slide deck built from the patient's case ----- */
+  async function buildSlides(l){
+    const script=ScriptGen.generate(l,cfg());
+    const byCue=(...cues)=>script.lines.filter(x=>cues.some(c=>x.cue.toLowerCase().includes(c)));
+    const slides=[];
+    slides.push({type:'intro', title:displayName(l), goals:l.goals||[], note:byCue('warm open','reflect')});
+    const photoSrcs=(l.photos||[]).filter(p=>p&&p.indexOf('data:')===0);
+    const imgs=await Promise.all(photoSrcs.map(loadImg));
+    slides.push({type:'photos', imgs:imgs.filter(Boolean), note:byCue('concern','recommendation')});
+    if(l.sim&&l.sim.enabled) slides.push({type:'preview', note:byCue('preview')});
+    slides.push({type:'plan', plan:planFor(l), note:byCue('timeline','next step','close')});
+    return slides;
+  }
+
+  /* ----- the compositor ----- */
+  function startDraw(){ cancelAnimationFrame(studio.raf); const loop=()=>{ drawStage(); studio.raf=requestAnimationFrame(loop); }; loop(); }
+  function drawStage(){
+    const c=sctx(), W=1280, H=720;
+    const s=studio.slides[studio.idx]; const full = PIP_MODES[studio.pip].k==='full';
+    if(full && studio.camReady){ drawVideoCover(c,0,0,W,H); drawLowerThird(c,W,H,s); }
+    else { drawSlide(c,s,W,H); if(studio.camReady && PIP_MODES[studio.pip].k!=='off') drawPip(c,W,H); }
+  }
+  function drawVideoCover(c,x,y,w,h){
+    const v=$('#recVideo'), vw=v.videoWidth||1280, vh=v.videoHeight||720;
+    const ar=vw/vh, tar=w/h; let dw,dh; if(ar>tar){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;}
+    c.save(); c.beginPath(); c.rect(x,y,w,h); c.clip();
+    c.translate(x+w,y); c.scale(-1,1);          // mirror
+    c.drawImage(v, (w-dw)/2, (h-dh)/2, dw, dh);
+    c.restore();
+  }
+  function drawPip(c,W,H){
+    const m=PIP_MODES[studio.pip].k; const big=m==='br-lg';
+    const w=big?420:300, h=w*9/16, pad=28;
+    const x = m==='bl' ? pad : W-w-pad;
+    const y = H-h-pad;
+    c.save(); roundRect(c,x,y,w,h,16); c.clip(); drawVideoCover(c,x,y,w,h); c.restore();
+    c.save(); roundRect(c,x,y,w,h,16); c.lineWidth=4; c.strokeStyle='#fff'; c.stroke();
+    c.shadowColor='rgba(0,0,0,.4)'; c.restore();
+  }
+  // slide backgrounds + content
+  function drawSlide(c,s,W,H){
+    // base
+    const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0E3F3C'); g.addColorStop(1,'#0A2C2A');
+    c.fillStyle=g; c.fillRect(0,0,W,H);
+    c.fillStyle='#fff';
+    if(!s){ return; }
+    if(s.type==='intro'){
+      c.textAlign='left';
+      c.fillStyle='rgba(255,255,255,.55)'; c.font='600 26px Plus Jakarta Sans'; c.fillText('Personalized smile consultation', 80, 150);
+      c.fillStyle='#fff'; c.font='500 76px Fraunces'; c.fillText(s.title, 78, 250);
+      c.fillStyle='#E8C07D'; c.font='600 30px Plus Jakarta Sans';
+      c.fillText('Goals: '+(s.goals.join(' · ')||'general consultation'), 80, 330);
+      c.fillStyle='rgba(255,255,255,.7)'; c.font='500 26px Plus Jakarta Sans'; c.fillText('with '+cfg().doctor.name+', '+cfg().doctor.role.split('·').pop().trim(), 80, 640);
+    } else if(s.type==='photos'){
+      slideTitle(c,'Your photos',W);
+      if(s.imgs.length){ const n=s.imgs.length, gap=40, aw=(W-160-gap*(n-1))/n;
+        s.imgs.forEach((im,i)=>{ const x=80+i*(aw+gap), y=170, h=440; c.save(); roundRect(c,x,y,aw,h,18); c.clip(); coverImg(c,im,x,y,aw,h); c.restore(); roundStroke(c,x,y,aw,h,18); });
+      } else { placeholderNote(c,'Patient photos appear here (this demo lead used seeded placeholders).',W,H); }
+    } else if(s.type==='preview'){
+      slideTitle(c,'Your smile preview',W);
+      const bw=(W-200)/2, y=180, h=420;
+      drawSmilePanel(c,80,y,bw,h,false,'Now');
+      drawSmilePanel(c,120+bw,y,bw,h,true,'Preview');
+      c.fillStyle='rgba(255,255,255,.6)'; c.textAlign='center'; c.font='500 22px Plus Jakarta Sans';
+      c.fillText('Illustrative preview — your real plan is what we’re discussing now.', W/2, 650); c.textAlign='left';
+    } else if(s.type==='case'){
+      slideTitle(c,'A case like yours',W);
+      c.fillStyle='#E8C07D'; c.font='600 28px Plus Jakarta Sans'; c.fillText(s.case.label, 80, 150);
+      const y=185;
+      if(s.case.single){ const h=430, w=h*4/3, x=(W-w)/2; c.save(); roundRect(c,x,y,w,h,18); c.clip(); coverImg(c,s.case.single,x,y,w,h); c.restore(); roundStroke(c,x,y,w,h,18); }
+      else { const bw=(W-200)/2,h=420; imgPanel(c,80,y,bw,h,s.case.before,'Before'); imgPanel(c,120+bw,y,bw,h,s.case.after,'After'); }
+    } else if(s.type==='plan'){
+      slideTitle(c,'Your recommended plan',W);
+      c.font='500 34px Plus Jakarta Sans'; let y=230;
+      s.plan.lines.forEach(p=>{ c.fillStyle='#fff'; c.fillText('• '+p.k, 90, y); c.fillStyle='#E8C07D'; c.textAlign='right'; c.fillText(p.v, W-90, y); c.textAlign='left'; y+=64; });
+      c.fillStyle='rgba(255,255,255,.85)'; c.font='600 28px Plus Jakarta Sans'; c.fillText('Financing from '+s.plan.financing, 90, y+12);
+      c.fillStyle='#E8775B'; roundRect(c,90,H-150,420,70,16); c.fill();
+      c.fillStyle='#fff'; c.font='700 28px Plus Jakarta Sans'; c.fillText('Next step: book your visit →', 118, H-105);
     }
   }
+  function drawLowerThird(c,W,H,s){ // when talking-head full, show a caption strip
+    c.fillStyle='rgba(10,40,38,.78)'; c.fillRect(0,H-110,W,110);
+    c.fillStyle='#fff'; c.font='600 30px Plus Jakarta Sans'; c.textAlign='left';
+    c.fillText(cfg().doctor.name+' — '+displayName(studio.lead), 60, H-50);
+  }
+  function slideTitle(c,t,W){ c.fillStyle='#fff'; c.font='500 52px Fraunces'; c.textAlign='left'; c.fillText(t,80,120);
+    c.strokeStyle='rgba(232,192,125,.6)'; c.lineWidth=3; c.beginPath(); c.moveTo(82,138); c.lineTo(82+t.length*22,138); c.stroke(); }
+  function placeholderNote(c,t,W,H){ c.fillStyle='rgba(255,255,255,.5)'; c.font='500 26px Plus Jakarta Sans'; c.textAlign='center'; wrap(c,t,W/2,H/2,W-300,36); c.textAlign='left'; }
+  function coverImg(c,im,x,y,w,h){ if(!im||!im.complete||!im.naturalWidth)return; const ar=im.width/im.height,tar=w/h;let dw,dh;if(ar>tar){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;}c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
+  function imgPanel(c,x,y,w,h,im,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip(); if(im)coverImg(c,im,x,y,w,h); else {c.fillStyle='#163f3c';c.fillRect(x,y,w,h);} c.restore(); roundStroke(c,x,y,w,h,18); tagLabel(c,x+14,y+14,label); }
+  function tagLabel(c,x,y,t){ c.fillStyle='rgba(0,0,0,.5)'; const w=t.length*11+20; roundRect(c,x,y,w,30,8); c.fill(); c.fillStyle='#fff'; c.font='700 16px Plus Jakarta Sans'; c.fillText(t,x+10,y+21); }
+  function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  function roundStroke(c,x,y,w,h,r){ c.save(); roundRect(c,x,y,w,h,r); c.lineWidth=3; c.strokeStyle='rgba(255,255,255,.25)'; c.stroke(); c.restore(); }
+  function wrap(c,t,cx,cy,maxw,lh){ const words=t.split(' ');let line='',y=cy;const lines=[];words.forEach(w=>{const test=line+w+' ';if(c.measureText(test).width>maxw){lines.push(line);line=w+' ';}else line=test;});lines.push(line);const start=y-(lines.length-1)*lh/2;lines.forEach((ln,i)=>c.fillText(ln.trim(),cx,start+i*lh)); }
+  function drawSmilePanel(c,x,y,w,h,after,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip();
+    const sk=c.createLinearGradient(x,y,x,y+h); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(x,y,w,h);
+    const cx=x+w/2,cy=y+h/2,mw=w*0.6,mh=mw*0.42;
+    c.fillStyle='#B65C5C'; c.beginPath(); c.ellipse(cx,cy,mw/2+13,mh/2+13,0,0,7); c.fill();
+    c.fillStyle='#5E2230'; c.beginPath(); c.ellipse(cx,cy,mw/2,mh/2,0,0,7); c.fill();
+    c.save(); c.beginPath(); c.ellipse(cx,cy-mh*0.05,mw/2-5,mh/2-3,0,0,7); c.clip();
+    const n=8,gap=3,tw=(mw-12)/n,x0=cx-(mw-12)/2,ty=cy-mh/2+3;
+    for(let i=0;i<n;i++){let px=x0+i*tw,ph=mh-12,py=ty;c.fillStyle=after?'#fff':'#E2D4AE';if(!after){if(i===3)py+=6;if(i===4)px+=4;}c.fillRect(px,py,tw-gap,ph);} c.restore();
+    c.restore(); roundStroke(c,x,y,w,h,18); tagLabel(c,x+14,y+14,label);
+  }
+
+  /* ----- slide / pip / teleprompter controls ----- */
+  function setSlide(i){ studio.idx=Math.max(0,Math.min(studio.slides.length-1,i)); updateSlideUi(); }
+  function prevSlide(){ setSlide(studio.idx-1); }
+  function nextSlide(){ setSlide(studio.idx+1); }
+  function updateSlideUi(){
+    $('#slideCount').textContent=(studio.idx+1)+' / '+studio.slides.length;
+    $$('.sthumb').forEach((el,i)=>el.classList.toggle('cur',i===studio.idx));
+    const s=studio.slides[studio.idx]; const notes=(s&&s.note&&s.note.length)?s.note:[{cue:'',text:''}];
+    $('#teleprompter').innerHTML = notes.map(n=>`<div class="tl">${n.cue?`<b>${esc(n.cue)}</b>`:''}${esc(n.text)}</div>`).join('');
+  }
+  function cyclePip(){ studio.pip=(studio.pip+1)%PIP_MODES.length; updatePipLabel(); }
+  function updatePipLabel(){ $('#pipToggle').textContent='📹 Camera: '+PIP_MODES[studio.pip].label; }
+  function toggleTele(){ studio.tele=!studio.tele; $('#teleprompter').classList.toggle('off',!studio.tele); $('#teleToggle').textContent='📝 Script: '+(studio.tele?'on':'off'); }
+
+  /* ----- case library ----- */
+  function buildCaseLibrary(){
+    const mk=(label,beforeOpts,afterOpts)=>({id:'c'+Math.random().toString(36).slice(2,6),label,
+      before:caseImg(beforeOpts), after:caseImg(afterOpts)});
+    return [
+      mk('Diastema closure · veneers',{gap:true,shade:'#E2D4AE'},{shade:'#fff'}),
+      mk('Whitening + bonding',{shade:'#D8C58E'},{shade:'#fff'}),
+      mk('Full veneer makeover',{gap:true,chip:true,shade:'#D9C9A0'},{shade:'#fff'}),
+      mk('Chipped front tooth',{chip:true,shade:'#E7DCB8'},{shade:'#FBFBF6'})
+    ];
+  }
+  function caseImg(o){ const cv=document.createElement('canvas'); cv.width=200; cv.height=150; const c=cv.getContext('2d');
+    const sk=c.createLinearGradient(0,0,0,150); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(0,0,200,150);
+    const cx=100,cy=80,mw=120,mh=52; c.fillStyle='#B65C5C'; c.beginPath(); c.ellipse(cx,cy,mw/2+10,mh/2+10,0,0,7); c.fill();
+    c.fillStyle='#5E2230'; c.beginPath(); c.ellipse(cx,cy,mw/2,mh/2,0,0,7); c.fill();
+    c.save(); c.beginPath(); c.ellipse(cx,cy-2,mw/2-4,mh/2-3,0,0,7); c.clip();
+    const n=8,gap=2,tw=(mw-8)/n,x0=cx-(mw-8)/2,ty=cy-mh/2+2;
+    for(let i=0;i<n;i++){let x=x0+i*tw,h=mh-8,y=ty;c.fillStyle=o.shade;if(o.gap&&i===4)x+=4;if(o.chip&&i===3)h-=8;c.fillRect(x,y,tw-gap,h);} c.restore();
+    const img=new Image(); img.src=cv.toDataURL('image/jpeg',0.8); return img;
+  }
+  function renderCaseLib(){
+    const box=$('#caseLib'); box.innerHTML='';
+    caseLibrary.forEach(cs=>{
+      const el=document.createElement('div'); el.className='casecard'; el.title='Add “'+cs.label+'” as a slide';
+      el.innerHTML=`<div class="thumbs"></div><div class="cl">${esc(cs.label)}</div>`;
+      const th=el.querySelector('.thumbs');
+      [cs.before,cs.single?null:cs.after].filter(Boolean).forEach(im=>{ const cnv=document.createElement('canvas'); cnv.width=100;cnv.height=54; const cc=cnv.getContext('2d'); const draw=()=>cc.drawImage(im,0,0,100,54); if(im.complete)draw(); else im.onload=draw; th.appendChild(cnv); });
+      el.onclick=()=>addCaseSlide(cs);
+      box.appendChild(el);
+    });
+    $('#caseUpload').onchange=onCaseUpload;
+  }
+  function addCaseSlide(cs){
+    const note=[{cue:'Show a similar case', text:`Here’s a patient who started in a similar place — this is the kind of result we can aim for.`}];
+    studio.slides.push({type:'case', case:cs, note});
+    renderStrip(); setSlide(studio.slides.length-1); toast('Added “'+cs.label+'” as a slide');
+  }
+  async function onCaseUpload(e){
+    const files=[...e.target.files]; for(const f of files){ const url=await fileToDataUrl(f); const img=await loadImg(url);
+      const cs={id:'up'+Math.random().toString(36).slice(2,6), label:f.name.replace(/\.[^.]+$/,'').slice(0,22), single:img, before:img};
+      caseLibrary.push(cs); }
+    renderCaseLib(); toast(files.length+' case image(s) added to your library');
+    e.target.value='';
+  }
+  function fileToDataUrl(f){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); }); }
+  function renderStrip(){
+    const ICON={intro:'👋',photos:'🖼️',preview:'✨',case:'🦷',plan:'📋'};
+    $('#slideStrip').innerHTML=studio.slides.map((s,i)=>{
+      const label={intro:'Intro',photos:'Patient photos',preview:'Smile preview',case:(s.case&&s.case.label)||'Case',plan:'Recommended plan'}[s.type];
+      const rm = s.type==='case' ? `<span class="rm" onclick="event.stopPropagation();DoctorApp.removeSlide(${i})">✕</span>`:'';
+      return `<div class="sthumb ${i===studio.idx?'cur':''}" onclick="DoctorApp.gotoSlide(${i})"><span class="si">${ICON[s.type]}</span>${esc(label)}${rm}</div>`;
+    }).join('');
+  }
+  function gotoSlide(i){ setSlide(i); }
+  function removeSlide(i){ if(studio.slides[i] && studio.slides[i].type==='case'){ studio.slides.splice(i,1); if(studio.idx>=studio.slides.length)studio.idx=studio.slides.length-1; renderStrip(); updateSlideUi(); } }
+
+  /* ----- recording the composited canvas + mic ----- */
+  function pickMime(){ return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||''; }
   function toggleRecord(){
-    if(!recStream) return;
-    if(recorder && recorder.state==='recording'){ recorder.stop(); return; }
-    chunks=[];
-    try{ recorder=new MediaRecorder(recStream); }catch(e){ toast('Recording not supported here.'); return; }
-    recorder.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
-    recorder.onstop=()=>{
-      const blob=new Blob(chunks,{type:'video/webm'});
-      lastBlobUrl=URL.createObjectURL(blob);
-      recordedBlobs[recLeadId]={url:lastBlobUrl, dur:Math.round((Date.now()-recStart)/1000)};
-      clearInterval(recTimer); $('#recDot').hidden=true;
-      $('#recVideo').srcObject=null; $('#recVideo').src=lastBlobUrl; $('#recVideo').muted=false; $('#recVideo').play();
-      $('#recToggle').textContent='● Re-record'; $('#recUse').hidden=false;
+    if(studio.recorder && studio.recorder.state==='recording'){ studio.recorder.stop(); return; }
+    let cs; try{ cs=stage().captureStream(30); }catch(e){ toast('Canvas recording unsupported in this browser.'); return; }
+    if(studio.camStream){ const a=studio.camStream.getAudioTracks()[0]; if(a) cs.addTrack(a); }
+    studio.chunks=[];
+    try{ studio.recorder=new MediaRecorder(cs, pickMime()?{mimeType:pickMime()}:undefined); }catch(e){ toast('Recording not supported here.'); return; }
+    studio.recorder.ondataavailable=e=>{ if(e.data.size) studio.chunks.push(e.data); };
+    studio.recorder.onstop=()=>{
+      const blob=new Blob(studio.chunks,{type:'video/webm'}); const url=URL.createObjectURL(blob);
+      recordedBlobs[studio.id]={url, dur:Math.round((Date.now()-studio.recStart)/1000)};
+      clearInterval(studio.recTimer); $('#recDot').hidden=true;
+      const v=$('#recVideo'); v.srcObject=null; v.src=url; v.muted=false; v.classList.add('review'); v.play().catch(()=>{});
+      cancelAnimationFrame(studio.raf);
+      $('#recToggle').textContent='⟳ Re-record'; $('#recUse').hidden=false;
     };
-    recorder.start(); recStart=Date.now();
-    $('#recDot').hidden=false; $('#recToggle').textContent='■ Stop';
-    recTimer=setInterval(()=>{ const s=Math.round((Date.now()-recStart)/1000); $('#recTime').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); },500);
+    studio.recorder.start(); studio.recStart=Date.now();
+    $('#recDot').hidden=false; $('#recToggle').textContent='■ Stop recording';
+    $('#recVideo').classList.remove('review'); startDraw();
+    studio.recTimer=setInterval(()=>{ const s=Math.round((Date.now()-studio.recStart)/1000); $('#recTime').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); },500);
   }
   function useRecording(){
-    const rec=recordedBlobs[recLeadId];
-    SmileStore.saveVideo(recLeadId,{durationSec:rec?rec.dur:0, hasRecording:true});
-    closeRecorder();
-    toast('Take saved. Ready to send.');
+    const rec=recordedBlobs[studio.id];
+    SmileStore.saveVideo(studio.id,{durationSec:rec?rec.dur:0, hasRecording:true, slides:studio.slides.length});
+    closeRecorder(); toast('Presentation saved. Ready to send.');
   }
   function closeRecorder(){
-    if(recorder && recorder.state==='recording') try{recorder.stop()}catch(e){}
-    if(recStream){ recStream.getTracks().forEach(t=>t.stop()); recStream=null; }
-    clearInterval(recTimer);
-    const v=$('#recVideo'); v.srcObject=null; v.src='';
+    if(studio.recorder && studio.recorder.state==='recording') try{studio.recorder.stop()}catch(e){}
+    if(studio.camStream){ studio.camStream.getTracks().forEach(t=>t.stop()); studio.camStream=null; }
+    cancelAnimationFrame(studio.raf); clearInterval(studio.recTimer); studio.camReady=false;
+    const v=$('#recVideo'); v.srcObject=null; v.src=''; v.classList.remove('review');
     $('#recModal').classList.remove('show');
   }
 
@@ -416,6 +615,7 @@
   }
 
   global.DoctorApp = { openLead, closeDrawer, assign, toggleTag, addNote, copyScript, sendVideo, simulate, nudge,
-    openRecorder, toggleRecord, useRecording, closeRecorder, previewEmail, closeEmail, bookFromEmail };
+    openRecorder, toggleRecord, useRecording, closeRecorder, previewEmail, closeEmail, bookFromEmail,
+    prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);
