@@ -490,3 +490,63 @@ h3{font-family:var(--display);font-weight:500;font-size:18px;color:var(--teal-de
 .aliasadd{margin-top:8px}
 
 @media(max-width:760px){ .setlayout{grid-template-columns:1fr} .setnav{flex-direction:row;flex-wrap:wrap;position:static} .setnav-i{flex:1;justify-content:center} .perfbar .rangelabel{margin-left:0;width:100%} }
+
+/* =============================================================================
+   CONSULT-QUEUE WORKFLOW — stage clarity + one clear next action
+   Styles for the shared stage engine (nextAction): the queue "next action"
+   pill, the drawer's "current stage" banner, the mirrored next-step card, and
+   the visually set-apart demo controls. Built on the existing token system.
+   ============================================================================= */
+
+/* queue row: a compact "what to do next" pill under the status chip. The
+   waiting variant signals the ball is in the patient's court (sent/viewed). */
+.nextact{font-size:11px;font-weight:700;letter-spacing:.01em;padding:4px 10px;border-radius:99px;
+  background:var(--coral-soft);color:#B6442A;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.nextact.waiting{background:var(--cream-2);color:#7A6A3A}
+.nextact.done{background:var(--ok-soft);color:#1F6E58}
+
+/* drawer CTA bar: waiting state turns the sticky bar calm + neutral so it
+   reads as "no push needed from us right now". */
+.dr-cta.waiting{background:var(--cream)}
+
+/* current-stage banner above the pipeline chip strip: the headline answer to
+   "where is this lead, and what are we waiting on?" */
+.stagebanner{background:var(--coral-soft);border-radius:11px;padding:11px 14px;margin-bottom:12px;
+  border-left:4px solid var(--coral)}
+.stagebanner.waiting{background:var(--cream-2);border-left-color:var(--gold)}
+.stagebanner .sb-stage{font-size:14px;font-weight:800;color:var(--teal-deep)}
+.stagebanner .sb-hint{font-size:12.5px;color:rgba(30,42,42,.62);margin-top:3px;line-height:1.45}
+
+/* mirrored "next step" card body: the one primary action restated in context
+   so the workspace reads coherently top-to-bottom. */
+.nextstep{display:flex;align-items:center;gap:14px;background:var(--teal-soft);border-radius:12px;padding:14px 16px}
+.nextstep.waiting{background:var(--cream)}
+.nextstep .ns-text{flex:1;min-width:0}
+.nextstep .ns-text b{display:block;font-size:14px;color:var(--teal-deep)}
+.nextstep .ns-text span{display:block;font-size:12.5px;color:rgba(30,42,42,.6);margin-top:3px;line-height:1.45}
+.nextstep .cta-d{flex:none}
+.ns-secondary{margin-top:12px}
+
+/* DEMO controls — fake patient behavior to walk the funnel. Deliberately set
+   apart (dashed, muted) so they never read as real workflow steps. */
+.demobox{margin-top:14px;padding:11px 12px;border:1.5px dashed var(--line);border-radius:11px;
+  background:repeating-linear-gradient(45deg,transparent,transparent 9px,rgba(30,42,42,.018) 9px,rgba(30,42,42,.018) 18px);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.demolab{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(30,42,42,.4);
+  border:1px solid var(--line);border-radius:6px;padding:3px 7px}
+.demobtn{font-size:12px;font-weight:600;color:rgba(30,42,42,.6);background:#fff;border:1.5px solid var(--line);
+  border-radius:9px;padding:7px 12px;cursor:pointer;transition:.15s;font-family:var(--body)}
+.demobtn:hover{border-color:rgba(30,42,42,.3);color:var(--ink)}
+
+@media(max-width:520px){ .nextstep{flex-direction:column;align-items:stretch} .nextstep .cta-d{justify-content:center} }
+
+/* ---- marketing spend line-item editor ---- */
+.spendhead{display:grid;grid-template-columns:1fr 130px 90px 32px;gap:8px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:rgba(30,42,42,.4);padding:0 2px 4px}
+.spendlist{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+.spendrow{display:grid;grid-template-columns:1fr 130px 90px 32px;gap:8px;align-items:center;background:var(--cream);border-radius:10px;padding:7px 8px}
+.spendrow:hover{background:var(--teal-soft)}
+.spendrow input,.spendrow select{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-family:var(--body);font-size:13px;background:#fff;width:100%}
+.spendrow input:focus,.spendrow select:focus{outline:none;border-color:var(--teal)}
+.spendrow .amt{text-align:right}
+@media(max-width:560px){ .spendhead{display:none} .spendrow{grid-template-columns:1fr 1fr;gap:6px} .spendrow .xbtn{grid-column:2;justify-self:end} }

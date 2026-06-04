@@ -83,6 +83,80 @@
   function heatLabel(h){ return {hot:'🔥 Hot',warm:'Warm',cold:'Cold',done:'Closed loop'}[h]||h; }
   function srcOf(lead){ return SmileStore.channel(lead); }
 
+  /* ---- stage engine: the single source of truth for "what stage is this lead
+     in and what's the ONE next action?" Consumed by the queue row hint, the
+     drawer CTA bar, and the Send & follow-up card so they can never disagree.
+     Returns: { stage, waiting (bool), hint (one-liner), nextLabel (short verb
+     for the queue), primary {label,fn}, secondaries [{label,fn,cls}] }.
+     `fn` is a method name on DoctorApp; the caller wires the onclick. ---- */
+  function nextAction(l){
+    const id=l.id, c=l.contact||{};
+    const hasRec = !!recordedBlobs[id] || (l.video && l.video.recordedAt);
+    const sent   = l.video && l.video.sentAt;
+    const noEmail = !c.email;
+
+    // RECORDED-but-not-sent: ready to ship the video.
+    if(hasRec && !sent){
+      return { stage:'Recorded — not sent yet', waiting:false,
+        hint:'The consult video is filmed. Send it so the patient can watch and book.',
+        nextLabel:'Send video',
+        primary:{ label:'📤 Send video consult', fn:'sendVideo', cls:'coral-d' },
+        secondaries:[ canRecord()?{label:'⟳ Re-record', fn:'openRecorder'}:null,
+                      {label:'Preview patient email', fn:'previewEmail'} ].filter(Boolean) };
+    }
+    // SENT: ball is in the patient's court — waiting on a watch.
+    if(l.status==='sent'){
+      return { stage:'Sent — waiting on the patient to watch', waiting:true,
+        hint:'Sent '+timeAgo(l.video&&l.video.sentAt)+'. They haven’t opened it yet. A nudge is your best lever now.',
+        nextLabel:'Nudge to watch',
+        primary:{ label:'🔔 Send watch reminder', fn:["nudge",'sent'] },
+        secondaries:[ {label:'Preview patient email', fn:'previewEmail'} ] };
+    }
+    // VIEWED: they watched — push for the booking.
+    if(l.status==='viewed'){
+      return { stage:'Viewed — they watched, not booked yet', waiting:true,
+        hint:'They’ve seen your video. Send a booking nudge to convert the interest before it cools.',
+        nextLabel:'Nudge to book',
+        primary:{ label:'🔔 Send booking nudge', fn:["nudge",'viewed'] },
+        secondaries:[ {label:'✓ Mark as booked', fn:["setStatusManual",'booked']},
+                      {label:'Preview patient email', fn:'previewEmail'} ] };
+    }
+    // BOOKED: the conversion box below is the work.
+    if(l.status==='booked'){
+      return { stage:'Booked', waiting:false,
+        hint:'Booked. Log attendance + treatment value below so it counts toward revenue and ROAS.',
+        nextLabel:'Log outcome', primary:null, secondaries:[] };
+    }
+    if(l.status==='no_response'){
+      return { stage:'No response', waiting:false,
+        hint: noEmail ? 'Abandoned before leaving contact — retarget via the originating ad audience.'
+                      : 'Went cold. Try one recovery nudge to reopen the conversation.',
+        nextLabel: noEmail?'Retarget':'Recover',
+        primary: noEmail?null:{ label:'🔔 Send recovery nudge', fn:["nudge",'recover'] },
+        secondaries:[] };
+    }
+    // NEW / IN_REVIEW (no video yet): record the consult.
+    if(canRecord()){
+      return { stage:'New lead — needs a consult video', waiting:false,
+        hint:'AI script is drafted from their intake. Open the studio, riff, and film — speed-to-send is the #1 close lever.',
+        nextLabel:'Record consult',
+        primary:{ label:'🎬 Open Consult Studio', fn:'openRecorder' },
+        secondaries:[ {label:'Copy script', fn:'copyScript'} ] };
+    }
+    // front-desk view of a fresh lead: drafted, needs handing to a recorder.
+    const recorder=(cfg().staff.find(u=>u.canRecord)||{}).name||'';
+    return { stage:'New lead — drafted & ready to film', waiting:false,
+      hint:'Script is drafted. You can’t record — assign it to someone who can so the clock keeps moving.',
+      nextLabel:'Assign recorder',
+      primary:{ label:'Assign to a recorder →', fn:["assign",recorder] },
+      secondaries:[ {label:'Copy script', fn:'copyScript'} ] };
+  }
+  // build an onclick from a stage action's `fn` (string method, or [method,arg]).
+  function actCall(id, fn){
+    if(Array.isArray(fn)) return `DoctorApp.${fn[0]}('${id}','${esc(String(fn[1]))}')`;
+    return `DoctorApp.${fn}('${id}')`;
+  }
+
   /* ---------- QUEUE ---------- */
   function passesFilter(l){
     switch(activeFilter){
@@ -118,6 +192,11 @@
         ? `<img src="${l.photos[0]}" alt="">` : initials(l);
       const drop = l.furthestStep!=='complete' && !['sent','viewed','booked'].includes(l.status)
         ? `<span class="srcb" style="background:var(--hot-soft);color:#B6442A">dropped at ${l.furthestStep}</span>`:'';
+      // one clear next action per row, from the shared stage engine.
+      const na = nextAction(l);
+      const nextPill = na.primary
+        ? `<span class="nextact ${na.waiting?'waiting':''}">${na.waiting?'⏳ ':'→ '}${esc(na.nextLabel)}</span>`
+        : `<span class="nextact done">${esc(na.nextLabel)}</span>`;
       return `<div class="lead" onclick="DoctorApp.openLead('${l.id}')">
         <div class="ava">${ava}</div>
         <div class="main">
@@ -132,6 +211,7 @@
         </div>
         <div class="right">
           <span class="statp" data-s="${l.status}">${l.statusLabel}</span>
+          ${nextPill}
           ${l.sim&&l.sim.enabled?'<span class="assignee">✨ preview unlocked</span>':''}
         </div>
       </div>`;
@@ -291,9 +371,22 @@
        <label class="sfield"><span>Subhead</span><textarea onchange="DoctorApp.cfg('site.subhead',this.value)">${esc(site.subhead||'')}</textarea></label>
        ${fld('Primary CTA text','site.ctaText',site.ctaText)}`);
 
-    const spendCard = scard('Marketing spend', 'Monthly spend per PAID channel — drives CPL / CPA / ROAS. Leave organic channels (website, direct) blank.',
-      `<div class="srow">${fld('Google / $mo','spendBySource.google',spend.google,'number')}${fld('Facebook / $mo','spendBySource.facebook',spend.facebook,'number')}</div>
-       <div class="srow">${fld('Instagram / $mo','spendBySource.instagram',spend.instagram,'number')}${fld('TikTok / $mo','spendBySource.tiktok',spend.tiktok,'number')}</div>`);
+    const channels = SmileStore.channelsInUse();
+    const spendRows = spendList().map((r,i)=>`
+      <div class="spendrow">
+        <input value="${esc(r.label||'')}" onchange="DoctorApp.spendField(${i},'label',this.value)" placeholder="e.g. Google Search">
+        <select onchange="DoctorApp.spendField(${i},'channel',this.value)">
+          ${channels.map(ch=>`<option ${r.channel===ch?'selected':''}>${esc(ch)}</option>`).join('')}
+          ${channels.includes(r.channel)?'':`<option selected>${esc(r.channel||'')}</option>`}
+        </select>
+        <input type="number" class="amt" value="${r.amount||''}" onchange="DoctorApp.spendField(${i},'amount',this.value)" placeholder="$/mo">
+        <button class="xbtn" onclick="DoctorApp.spendDel(${i})">✕</button>
+      </div>`).join('');
+    const spendCard = scard('Marketing spend',
+      'Add a line item per campaign and map it to a source. Several lines can map to the same source (they’re summed for that channel). Leave organic sources out. Monthly $ drives CPL / CPA / ROAS.',
+      `<div class="spendhead"><span>Description</span><span>Source</span><span>$/mo</span><span></span></div>
+       <div class="spendlist">${spendRows||'<div class="hint">No spend lines yet — add one.</div>'}</div>
+       <button class="cta-d ghost-d" onclick="DoctorApp.spendAdd()">+ Add spend line</button>`);
 
     const links = scard('Link-in-bio links', 'Shown on your Linktree-style bio page. Click counts are tracked.',
       `<div class="linklist">`+(c.links||[]).map((lk,i)=>`
@@ -346,6 +439,13 @@
   function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); SmileStore.saveConfig(c); renderSettings(); }
   function linkDel(i){ const c=cfg(); c.links.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
   function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; SmileStore.saveConfig(c); }
+  // marketing spend as custom line-items {label,channel,amount}; normalizes the legacy object form
+  function spendList(){ const s=cfg().spendBySource; if(Array.isArray(s)) return s.map(x=>Object.assign({},x));
+    return Object.keys(s||{}).map(k=>({label:k.charAt(0).toUpperCase()+k.slice(1), channel:k.charAt(0).toUpperCase()+k.slice(1), amount:+s[k]||0})); }
+  function spendSave(list){ const c=cfg(); c.spendBySource=list; SmileStore.saveConfig(c); }
+  function spendAdd(){ const l=spendList(); l.push({label:'New campaign', channel:(SmileStore.channelsInUse()[0]||'Google'), amount:0}); spendSave(l); renderSettings(); }
+  function spendDel(i){ const l=spendList(); l.splice(i,1); spendSave(l); renderSettings(); }
+  function spendField(i,f,v){ const l=spendList(); if(!l[i]) return; l[i][f]= f==='amount'? (+v||0) : v; spendSave(l); }
   function aliasField(k,v){ const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); }
   function aliasDel(k){ const c=cfg(); if(c.sourceAliases) delete c.sourceAliases[k]; SmileStore.saveConfig(c); renderSettings(); }
   function aliasAdd(){ const k=($('#aliasKey').value||'').trim().toLowerCase(), v=($('#aliasVal').value||'').trim(); if(!k||!v) return; const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); renderSettings(); }
@@ -368,6 +468,15 @@
     const script = ScriptGen.generate(l, cfg());
     const hasRec = !!recordedBlobs[id] || (l.video && l.video.recordedAt);
     const sent = l.video && l.video.sentAt;
+    const na = nextAction(l);   // single source of truth for stage + next action
+
+    // CTA bar: ONE primary action (or a "waiting on patient" state), with
+    // stage-appropriate secondaries demoted to quiet ghost buttons.
+    const ctaHtml = na.primary
+      ? `<button class="cta-d big-cta ${na.primary.cls||''}" onclick="${actCall(id,na.primary.fn)}">${na.primary.label}</button>`
+        + na.secondaries.map(s=>`<button class="cta-d ghost-d" onclick="${actCall(id,s.fn)}">${s.label}</button>`).join('')
+      : `<div class="cta-sent">${l.status==='booked'?'✓ Booked':'No automated action — see below'} <span class="statp" data-s="${l.status}">${l.statusLabel}</span></div>`
+        + na.secondaries.map(s=>`<button class="cta-d ghost-d" onclick="${actCall(id,s.fn)}">${s.label}</button>`).join('');
 
     $('#drawer').innerHTML = `
       <div class="dr-head">
@@ -375,17 +484,8 @@
         <div class="t"><b>${esc(displayName(l))}</b><span>${esc(c.email||'no email yet')} ${c.phone?'· '+esc(c.phone):''}</span></div>
         <button class="x" onclick="DoctorApp.closeDrawer()">✕</button>
       </div>
-      <div class="dr-cta">
-        ${ !hasRec
-          ? ( canRecord()
-              ? `<button class="cta-d big-cta" onclick="DoctorApp.openRecorder('${id}')">🎬 Open Consult Studio</button>`
-              : `<div class="cta-sent">Drafted & ready to film.</div><button class="cta-d" onclick="DoctorApp.assign('${id}','${esc((cfg().staff.find(u=>u.canRecord)||{}).name||'')}')">Assign to a recorder →</button>` )
-          : !sent
-            ? `<button class="cta-d big-cta coral-d" onclick="DoctorApp.sendVideo('${id}')">📤 Send video consult</button>
-               ${canRecord()?`<button class="cta-d ghost-d" onclick="DoctorApp.openRecorder('${id}')">⟳ Re-record</button>`:''}
-               <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview</button>`
-            : `<div class="cta-sent">✓ Sent ${timeAgo(l.video.sentAt)} <span class="statp" data-s="${l.status}">${l.statusLabel}</span></div>
-               <button class="cta-d ghost-d" onclick="DoctorApp.previewEmail('${id}')">Preview email</button>` }
+      <div class="dr-cta ${na.waiting?'waiting':''}">
+        ${ctaHtml}
       </div>
       <div class="dr-body">
 
@@ -435,16 +535,27 @@
         </div>
 
         <div class="card">
-          <div class="ct">Send & follow-up</div>
-          <div class="btnrow">
-            ${hasRec && !sent ? `<button class="cta-d coral-d" onclick="DoctorApp.sendVideo('${id}')">📤 Send video consult</button>`:''}
-            ${sent && l.status==='sent' ? `<button class="ghost-d cta-d" onclick="DoctorApp.simulate('${id}','viewed')">Simulate: patient viewed</button>`:''}
-            ${l.status==='viewed' ? `<button class="cta-d coral-d" onclick="DoctorApp.simulate('${id}','booked')">Simulate: patient booked</button>
-               <button class="ghost-d cta-d" onclick="DoctorApp.nudge('${id}','viewed')">Send booking nudge</button>`:''}
-            ${l.status==='sent' ? `<button class="ghost-d cta-d" onclick="DoctorApp.nudge('${id}','sent')">Send watch nudge</button>`:''}
-            ${l.heat!=='hot' && !['sent','viewed','booked'].includes(l.status) && c.email ? `<button class="ghost-d cta-d" onclick="DoctorApp.nudge('${id}','recover')">Send recovery nudge</button>`:''}
-            ${!c.email ? `<div class="muted small">No contact captured — abandoned before the ask. Retarget via the originating ad audience.</div>`:''}
+          <div class="ct">Next step</div>
+          <!-- The ONE action for this stage, mirrored from the sticky CTA so the
+               workspace reads coherently top-to-bottom. -->
+          <div class="nextstep ${na.waiting?'waiting':''}">
+            <div class="ns-text"><b>${na.waiting?'⏳ ':''}${esc(na.stage)}</b><span>${esc(na.hint)}</span></div>
+            ${ na.primary
+              ? `<button class="cta-d ${na.primary.cls||''}" onclick="${actCall(id,na.primary.fn)}">${na.primary.label}</button>`
+              : '' }
           </div>
+          ${ na.secondaries.length ? `<div class="btnrow ns-secondary">
+            ${na.secondaries.map(s=>`<button class="ghost-d cta-d" onclick="${actCall(id,s.fn)}">${s.label}</button>`).join('')}
+          </div>`:'' }
+          ${ !c.email && !['booked'].includes(l.status) ? `<div class="muted small" style="margin-top:10px">No contact captured — abandoned before the ask. Retarget via the originating ad audience.</div>`:'' }
+
+          <!-- DEMO controls: these FAKE patient behavior to walk the funnel.
+               Set apart so they never read as a real workflow step. -->
+          ${ (sent && l.status==='sent') || l.status==='viewed' ? `<div class="demobox">
+            <span class="demolab">Demo</span>
+            ${ sent && l.status==='sent' ? `<button class="demobtn" onclick="DoctorApp.simulate('${id}','viewed')">Simulate: patient viewed</button>`:'' }
+            ${ l.status==='viewed' ? `<button class="demobtn" onclick="DoctorApp.simulate('${id}','booked')">Simulate: patient booked</button>`:'' }
+          </div>`:'' }
           ${l.booking?`<div class="note" style="margin-top:12px">📅 ${esc(l.booking.apptTime||'Booked')}</div>`:''}
           ${ l.status==='booked' ? `<div class="paidbox">
             <label class="perm"><input type="checkbox" ${l.booking&&l.booking.attended?'checked':''} onchange="DoctorApp.markAttended('${id}',this.checked)"> attended consult</label>
@@ -523,14 +634,22 @@
   function statusFlowHtml(l){
     const steps=[['new','New'],['in_review','In review'],['recorded','Recorded'],['sent','Sent'],['viewed','Viewed'],['booked','Booked']];
     const order=SmileStore.STATUS[l.status]?SmileStore.STATUS[l.status].order:0;
-    return `<div class="card"><div class="ct">Status</div><div class="statusflow">`+
+    const na=nextAction(l);
+    // headline: where this lead IS + the one-line "what's next / waiting on".
+    const banner=`<div class="stagebanner ${na.waiting?'waiting':''}">
+        <div class="sb-stage">${na.waiting?'⏳ ':''}${esc(na.stage)}</div>
+        <div class="sb-hint">${esc(na.hint)}</div>
+      </div>`;
+    return `<div class="card"><div class="ct">Current stage</div>
+      ${banner}
+      <div class="statusflow">`+
       steps.map(([k,lbl],i)=>{
         const o=SmileStore.STATUS[k].order;
         const cls = l.status===k?'cur':(o<order?'done':'');
         return `<span class="stp ${cls}">${lbl}</span>${i<steps.length-1?'<span class="arr">→</span>':''}`;
       }).join('')+`</div>
       <div class="statusset">
-        <span>Set manually</span>
+        <span>Override stage</span>
         <select class="assignsel" onchange="DoctorApp.setStatusManual('${l.id}',this.value)">
           ${Object.keys(SmileStore.STATUS).map(k=>`<option value="${k}" ${l.status===k?'selected':''}>${SmileStore.STATUS[k].label}</option>`).join('')}
         </select>
@@ -1080,7 +1199,7 @@
     prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
     setOrient, addTextSlide, tab, filterCases, moveSlide, edit, editSim, openBrand, closeBrand,
     cfg: cfgSet, staffAdd, staffDel, staffRec, staffField, qAdd, qDel, qMove, qField, linkAdd, linkDel, linkField,
-    aliasField, aliasDel, aliasAdd, setSection,
+    aliasField, aliasDel, aliasAdd, setSection, spendAdd, spendDel, spendField,
     simPreview, simTweak, markAttended, markPaid, setTreatmentValue, setConversionNotes, setStatusManual, setPerfRange };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);
