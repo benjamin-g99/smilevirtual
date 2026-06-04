@@ -57,16 +57,20 @@
   }
 
   /* ---- queue ---- */
+  let activeView='queue', settingsSection='surgeon';
   function boot(){
     S.ensureSeeded();
     $('resetDemo').addEventListener('click', ()=>{ if(confirm('Reset aesthetic demo leads?')){ S.reset(); render(); } });
     document.querySelectorAll('.chipf').forEach(b=>b.addEventListener('click',()=>{ activeFilter=b.dataset.filter; document.querySelectorAll('.chipf').forEach(x=>x.classList.toggle('active',x===b)); renderQueue(); }));
+    document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
     $('scrim').addEventListener('click', closeDrawer);
     $('emailModal').addEventListener('click', e=>{ if(e.target.id==='emailModal') closeEmail(); });
     S.onChange(render);
     render();
   }
-  function render(){ renderQueue(); if(openId) renderDrawer(openId); }
+  function setView(v){ activeView=v; document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+    $('view-queue').hidden=v!=='queue'; $('view-perf').hidden=v!=='perf'; $('view-settings').hidden=v!=='settings'; render(); }
+  function render(){ if(activeView==='queue') renderQueue(); else if(activeView==='perf') renderPerf(); else if(activeView==='settings') renderSettings(); if(openId) renderDrawer(openId); }
   function done(l){ return ['sent','viewed','booked'].includes(l.status); }
   function passes(l){
     if(activeFilter==='hot') return l.qual.tier==='hot' && !done(l);
@@ -348,7 +352,68 @@
   function bookFromEmail(id){ S.patch(id,{status:'booked', booking:{bookedAt:new Date().toISOString(), note:'Self-booked from video — deposit paid', deposit:cfg().depositAmount}}); closeEmail(); toast('🎉 Patient booked a consult + paid the deposit'); }
   function closeEmail(){ $('emailModal').classList.remove('show'); }
 
+  /* ---- Performance ---- */
+  function renderPerf(){
+    const a=S.analytics(), m=n=>'$'+(n||0).toLocaleString(); const f0=a.funnel[0].count||1;
+    const kpis=[['🔥',a.hot,'Hot leads now'],['📈',m(a.pipeline),'Open pipeline value'],['💰',m(a.revenue),'Revenue (proceeded)'],['🎟️',m(a.avg),'Avg case value'],['📅',a.conv.leadToBooked+'%','Lead → booked']];
+    let html=`<div class="metrics">`+kpis.map(([ic,v,l])=>`<div class="metric"><div class="mi">${ic}</div><div class="big">${v}</div><div class="lbl">${l}</div></div>`).join('')+`</div>`;
+    html+=`<div class="panel"><h3><span class="ph-ic">🫥</span>Consult funnel</h3><p class="muted small">Where serious cases advance — and where you lose them.</p><div class="funnelchart">`+
+      a.funnel.map((s,i)=>{ const w=Math.round(s.count/f0*100), drop=(i>0&&s.drop>0)?`▼ ${s.drop} dropped`:''; return `<div class="frow"><div class="flabel">${esc(s.label)}</div><div class="ftrack"><div class="ffill" style="width:${Math.max(w,3)}%"><span>${s.count}</span></div></div><div class="fpct">${s.pct}%</div><div class="fdrop">${drop}</div></div>`; }).join('')+`</div></div>`;
+    html+=`<div class="grid2"><div class="panel"><h3><span class="ph-ic">🎯</span>Lead quality</h3><div class="tiermix"><div class="t hot"><b>${a.tiers.hot}</b>hot</div><div class="t warm"><b>${a.tiers.warm}</b>warm</div><div class="t cold"><b>${a.tiers.cold}</b>cold</div></div><p class="muted small" style="margin-top:10px">Hot = high-value, ready, in-budget. Those earn the surgeon's video; the rest are nurtured.</p></div>
+      <div class="panel"><h3><span class="ph-ic">💳</span>Conversion</h3><div class="kpis"><div><b>${a.conv.leadToBooked}%</b><span>lead → booked</span></div><div><b>${a.conv.bookedToPaid}%</b><span>booked → paid</span></div><div><b>${m(a.avg)}</b><span>avg case</span></div></div></div></div>`;
+    html+=`<div class="panel"><h3><span class="ph-ic">📊</span>By source — pipeline &amp; ROAS</h3><p class="muted small">Spend (paid channels) set in Settings. Pipeline = est. value of open leads.</p>
+      <table class="tbl"><tr><th>Source</th><th>Spend</th><th>Leads</th><th>CPL</th><th>Sent</th><th>Booked</th><th>Paid</th><th>Revenue</th><th>Pipeline</th><th>ROAS</th></tr>`+
+      a.sources.map(r=>`<tr><td class="src">${esc(r.source)}</td><td>${r.spend?m(r.spend):'—'}</td><td>${r.leads}</td><td>${r.cpl!=null?m(r.cpl):'—'}</td><td>${r.sent}</td><td>${r.booked}</td><td>${r.paid}</td><td>${m(r.revenue)}</td><td>${m(r.pipeline)}</td><td>${r.roas!=null?r.roas+'×':'—'}</td></tr>`).join('')+`</table></div>`;
+    $('perf').innerHTML=html;
+  }
+
+  /* ---- Settings ---- */
+  function cfgSet(path,val){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){o[p[i]]=o[p[i]]||{};o=o[p[i]];} o[p[p.length-1]]=val; S.saveConfig(c); }
+  function cfgNum(path,val){ cfgSet(path,+val||0); }
+  function cfgList(path,val){ cfgSet(path, val.split(',').map(s=>s.trim()).filter(Boolean)); }
+  function procPrice(id,field,val){ const c=cfg(); c.procedures=(c.procedures||S.PROCEDURES).map(p=>Object.assign({},p)); const p=c.procedures.find(x=>x.id===id); if(p) p[field]=+val||0; S.saveConfig(c); }
+  function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); S.saveConfig(c); renderSettings(); }
+  function linkDel(i){ const c=cfg(); c.links.splice(i,1); S.saveConfig(c); renderSettings(); }
+  function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; S.saveConfig(c); }
+  function setSection(k){ settingsSection=k; renderSettings(); }
+  const SET_ICONS={surgeon:'🩺',brand:'🎨',procedures:'💉',financing:'💳',tracking:'📈',links:'🔗',pages:'🚀'};
+  function scard(icon,title,sub,body){ return `<div class="panel sset"><div class="seth"><span class="setic">${icon}</span><div><h3>${title}</h3>${sub?`<p class="muted small">${sub}</p>`:''}</div></div><div class="sbody">${body}</div></div>`; }
+  function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="AV.${type==='number'?'cfgNum':'cfg'}('${path}',this.value)"></label>`; }
+  function renderSettings(){
+    const c=cfg(), d=c.surgeon||{}, b=c.brand||{}, an=c.analytics||{}, fin=c.financing||{}, sp=c.spendBySource||{};
+    const surgeon=scard(SET_ICONS.surgeon,'Practice & surgeon','Shown across the patient flow, video pages and bio.',
+      `<div class="srow">${fld('Surgeon name','surgeon.name',d.name)}${fld('Credential','surgeon.credential',d.credential)}</div>
+       <div class="srow">${fld('Specialty','surgeon.specialty',d.specialty)}${fld('Rating','surgeon.rating',d.rating,'number')}${fld('# reviews','surgeon.reviews',d.reviews,'number')}</div>
+       <div class="srow">${fld('Phone','surgeon.phone',d.phone)}${fld('Email','surgeon.email',d.email)}${fld('City','surgeon.city',d.city)}${fld('State','surgeon.state',d.state)}</div>
+       <label class="sfield"><span>Bio</span><textarea onchange="AV.cfg('surgeon.bio',this.value)">${esc(d.bio||'')}</textarea></label>`);
+    const brand=scard(SET_ICONS.brand,'Brand & theme','Applied to consult slides, the closing page and your bio.',
+      `<div class="srow">${fld('Practice name','brand.name',b.name)}</div>
+       <div class="srow"><label class="sfield"><span>Primary</span><input type="color" value="${b.primary}" onchange="AV.cfg('brand.primary',this.value)"></label><label class="sfield"><span>Accent</span><input type="color" value="${b.accent}" onchange="AV.cfg('brand.accent',this.value)"></label></div>`);
+    const procs=(c.procedures||S.PROCEDURES);
+    const procedures=scard(SET_ICONS.procedures,'Procedures & pricing','Ballpark ranges drive the patient flow, scripts and the closing page.',
+      procs.map(p=>`<div class="procrow"><span class="pl">${p.icon} ${esc(p.label)}</span>
+        <label class="sfield" style="flex:none"><span>From</span><input type="number" value="${p.from}" onchange="AV.procPrice('${p.id}','from',this.value)" style="width:88px"></label>
+        <label class="sfield" style="flex:none"><span>To</span><input type="number" value="${p.to}" onchange="AV.procPrice('${p.id}','to',this.value)" style="width:88px"></label>
+        <label class="sfield" style="flex:none"><span>$/mo</span><input type="number" value="${p.mo}" onchange="AV.procPrice('${p.id}','mo',this.value)" style="width:68px"></label></div>`).join(''));
+    const financing=scard(SET_ICONS.financing,'Financing & deposit','Partners shown on the closing page; deposit gates consult booking.',
+      `<label class="sfield"><span>Financing partners (comma-separated)</span><input value="${esc((fin.partners||[]).join(', '))}" onchange="AV.cfgList('financing.partners',this.value)"></label>
+       ${fld('Refundable consult deposit ($)','depositAmount',c.depositAmount,'number')}`);
+    const tracking=scard(SET_ICONS.tracking,'Tracking & spend','Pixels fire on the patient flow; monthly spend drives ROAS.',
+      `<div class="srow">${fld('Meta Pixel ID','analytics.metaPixelId',an.metaPixelId)}${fld('GA4 ID','analytics.ga4Id',an.ga4Id)}${fld('Google Ads ID','analytics.googleAdsId',an.googleAdsId)}</div>
+       <div class="srow">${fld('Instagram / $mo','spendBySource.instagram',sp.instagram,'number')}${fld('Google / $mo','spendBySource.google',sp.google,'number')}${fld('TikTok / $mo','spendBySource.tiktok',sp.tiktok,'number')}</div>`);
+    const links=scard(SET_ICONS.links,'Link-in-bio','Your Linktree-style bio for Instagram. Primary CTA is the free consult.',
+      `<div>`+(c.links||[]).map((lk,i)=>`<div class="linkrow"><input value="${esc(lk.icon||'')}" onchange="AV.linkField(${i},'icon',this.value)"><input value="${esc(lk.label)}" onchange="AV.linkField(${i},'label',this.value)" placeholder="Label" style="flex:1"><input value="${esc(lk.url)}" onchange="AV.linkField(${i},'url',this.value)" placeholder="https://" style="flex:1"><button class="xbtn" onclick="AV.linkDel(${i})">✕</button></div>`).join('')+`</div>
+       <button class="cta-d ghost-d" onclick="AV.linkAdd()">+ Add link</button>`);
+    const pages=scard(SET_ICONS.pages,'Public pages','Auto-generated from this config.',
+      `<div class="pagelinks"><a class="cta-d" href="../patient/" target="_blank">📱 Patient flow</a><a class="cta-d ghost-d" href="../" target="_blank">🌐 Concept hub</a></div>
+       <p class="muted small" style="margin-top:10px">Landing page, link-in-bio &amp; embeddable widgets are shared platform surfaces — they carry over and theme to this brand; aesthetic-branded versions are the next build.</p>`);
+    const sections=[['surgeon','Practice & surgeon',surgeon],['brand','Brand & theme',brand],['procedures','Procedures & pricing',procedures],['financing','Financing & deposit',financing],['tracking','Tracking & spend',tracking],['links','Link-in-bio',links],['pages','Public pages',pages]];
+    if(!sections.some(s=>s[0]===settingsSection)) settingsSection='surgeon';
+    const active=sections.find(s=>s[0]===settingsSection);
+    $('settings').innerHTML=`<div class="setlayout"><nav class="setnav">${sections.map(([k,l])=>`<button class="setnav-i ${k===settingsSection?'on':''}" onclick="AV.setSection('${k}')"><span class="ni">${SET_ICONS[k]}</span><span>${l}</span></button>`).join('')}</nav><div class="setpane">${active[2]}</div></div>`;
+  }
+
   global.AV={ openLead, closeDrawer, openStudio, closeStudio, prevSlide, nextSlide, goSlide, cyclePip, toggleTele, toggleRecord, useRecording, sendVideo, simulate, markPaid, setValue, previewEmail, closeEmail, bookFromEmail,
-    tab, edit, addTextSlide, moveSlide, removeSlide, filterBa };
+    tab, edit, addTextSlide, moveSlide, removeSlide, filterBa, setView, setSection, cfg:cfgSet, cfgNum, cfgList, procPrice, linkAdd, linkDel, linkField };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);

@@ -37,7 +37,8 @@
     {id:'mommy', label:'Mommy makeover', icon:'🌸', from:15000, to:30000, mo:330, region:'body',
       photos:[{label:'Front — torso',hint:'Standing, relaxed'},{label:'Side profile',hint:'Full side view'}]}
   ];
-  const procById=(id)=>PROCEDURES.find(p=>p.id===id);
+  function getProcs(){ try{ const c=JSON.parse(localStorage.getItem(CFG)); if(c&&Array.isArray(c.procedures)) return c.procedures; }catch(e){} return PROCEDURES; }
+  const procById=(id)=>getProcs().find(p=>p.id===id);
   const DEFAULT_PHOTOS=[{label:'Front',hint:'Face the camera, good light'},{label:'Profile (side)',hint:'Turn to show your side'}];
   // treatment-specific photo set for the selected procedures (deduped by label, capped)
   function photoSet(ids){
@@ -48,11 +49,16 @@
 
   const DEFAULT_CONFIG={
     surgeon:{ name:'Dr. Elena Vance', credential:'MD, FACS', specialty:'Board-Certified Plastic Surgeon',
-      photo:null, rating:4.9, reviews:840, city:'Newport Beach', state:'CA',
+      photo:null, rating:4.9, reviews:840, city:'Newport Beach', state:'CA', phone:'(949) 555-0100', email:'hello@vanceplastics.com',
       bio:'Board-certified plastic surgeon focused on natural-looking results. 4,000+ procedures, with a same-week personal video consultation for every serious inquiry.' },
     brand:{ name:'Vance Plastic Surgery', primary:'#4A2F50', accent:'#C98B86' },
     financing:{ partners:['Cherry','PatientFi','CareCredit'], aprFrom:0 },
     depositAmount:250,         // refundable consult deposit
+    analytics:{ metaPixelId:'', ga4Id:'', googleAdsId:'' },
+    links:[ {id:'lk_book',label:'Book a consultation',url:'https://example.com/book',icon:'📅'},
+            {id:'lk_ba',label:'See before & afters',url:'https://example.com/gallery',icon:'✨'},
+            {id:'lk_ig',label:'Follow on Instagram',url:'https://instagram.com',icon:'📸'} ],
+    spendBySource:{ instagram:1500, google:1200, tiktok:400 },   // monthly spend per paid channel (demo)
     procedures:PROCEDURES
   };
 
@@ -100,6 +106,31 @@
     addCase(c){ const l=this.cases(); l.unshift(Object.assign({id:'bc_'+Math.random().toString(36).slice(2,7)},c)); localStorage.setItem(CASES,JSON.stringify(l)); notify(); return l[0]; },
     removeCase(id){ localStorage.setItem(CASES,JSON.stringify(this.cases().filter(c=>c.id!==id))); notify(); },
     onChange(fn){ listeners.add(fn); return ()=>listeners.delete(fn); },
+    /* practice analytics — funnel, pipeline value, revenue, by-source ROAS, tier mix */
+    analytics(){
+      const all=this.all();
+      const spend=this.config().spendBySource||{};
+      const sentN=all.filter(l=>l.video&&l.video.sentAt).length;
+      const F=[
+        ['started','Started flow', all.length],
+        ['lead','Became a lead', all.filter(l=>l.contact&&l.contact.email).length],
+        ['sent','Video sent', sentN],
+        ['viewed','Watched video', all.filter(l=>l.video&&l.video.viewedAt).length],
+        ['booked','Booked consult', all.filter(l=>l.status==='booked'||(l.booking&&l.booking.bookedAt)).length],
+        ['paid','Proceeded / paid', all.filter(l=>l.booking&&l.booking.paid).length]
+      ].map((r,i,a)=>{ const prev=i?a[i-1][2]:r[2]; return { key:r[0], label:r[1], count:r[2], pct:a[0][2]?Math.round(r[2]/a[0][2]*100):0, drop:Math.max(0,prev-r[2]) }; });
+      const revenue=all.filter(l=>l.booking&&l.booking.paid).reduce((s,l)=>s+(l.booking.value||0),0);
+      const pipeline=all.filter(l=>!(l.booking&&l.booking.paid)).reduce((s,l)=>s+(l.qual.value||0),0);
+      const paid=F[5].count, booked=F[4].count, lead=F[1].count;
+      const bySrc={};
+      all.forEach(l=>{ const s=(l.source&&l.source.utm_source)||'direct'; const r=bySrc[s]||(bySrc[s]={source:s,leads:0,sent:0,booked:0,paid:0,revenue:0,pipeline:0,spend:spend[s.toLowerCase()]||0});
+        r.leads++; if(l.video&&l.video.sentAt)r.sent++; if(l.status==='booked'||(l.booking&&l.booking.bookedAt))r.booked++; if(l.booking&&l.booking.paid){r.paid++;r.revenue+=l.booking.value||0;} if(!(l.booking&&l.booking.paid))r.pipeline+=l.qual.value||0; });
+      const sources=Object.values(bySrc).map(r=>{ r.roas=r.spend?Math.round(r.revenue/r.spend*10)/10:null; r.cpl=r.spend&&r.leads?Math.round(r.spend/r.leads):null; return r; }).sort((a,b)=>b.revenue-a.revenue||b.leads-a.leads);
+      const tiers={hot:0,warm:0,cold:0}; all.forEach(l=>tiers[l.qual.tier]=(tiers[l.qual.tier]||0)+1);
+      return { funnel:F, revenue, pipeline, avg:paid?Math.round(revenue/paid):0,
+        conv:{ leadToBooked:lead?Math.round(booked/lead*100):0, bookedToPaid:booked?Math.round(paid/booked*100):0 },
+        sources, tiers, hot:tiers.hot };
+    },
     all(){ return read().map(l=>Object.assign({},l,{qual:qualify(l)})).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)); },
     get(id){ const l=read().find(x=>x.id===id); return l?Object.assign({},l,{qual:qualify(l)}):null; },
 
