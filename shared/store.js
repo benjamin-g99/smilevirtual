@@ -98,6 +98,23 @@
 
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
 
+    /* total monthly spend per channel-slug. Accepts either the legacy object
+       form { google:900,... } OR a list [{label,channel,amount}] of custom
+       line-items (multiple lines can map to the same channel and are summed). */
+    spendByChannel() {
+      const s = (this.config() || {}).spendBySource;
+      const m = {};
+      if (Array.isArray(s)) { s.forEach(r => { if (r && r.channel) { const k = String(r.channel).toLowerCase(); m[k] = (m[k] || 0) + (+r.amount || 0); } }); }
+      else { Object.keys(s || {}).forEach(k => { m[k.toLowerCase()] = +s[k] || 0; }); }
+      return m;
+    },
+    // distinct channels seen across leads (+ the common defaults) — for spend mapping UIs
+    channelsInUse() {
+      const set = new Set(['Google', 'Facebook', 'Instagram', 'TikTok', 'Website', 'Direct']);
+      read().forEach(l => set.add(this.channel(l)));
+      return [...set];
+    },
+
     /* resolve a lead's friendly marketing channel from utm_source (via the
        configurable alias map), falling back to the referrer, then Direct. */
     channel(lead) {
@@ -280,7 +297,7 @@
         simUnlockRate: started ? Math.round(leads.filter(l => l.sim && l.sim.enabled).length / started * 100) : 0
       };
       // revenue + ROAS by source
-      const spend = cfg.spendBySource || {};
+      const spend = this.spendByChannel();               // {channelSlug: monthly $} (object or custom list)
       const bySrc = {};
       leads.forEach(l => {
         const src = this.channel(l);                       // friendly channel via alias map
