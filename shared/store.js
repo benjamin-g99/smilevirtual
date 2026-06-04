@@ -13,6 +13,7 @@
 
   const KEY = 'smilevirtual.leads.v1';
   const CFG_KEY = 'smilevirtual.config.v1';
+  const CASES_KEY = 'smilevirtual.cases.v1';
   const SEEDED_KEY = 'smilevirtual.seeded.v1';
 
   /* ---- SLA + status model -------------------------------------------------
@@ -83,10 +84,16 @@
     STATUS, SLA_HOURS,
 
     config() {
-      try { return JSON.parse(localStorage.getItem(CFG_KEY)) || DEFAULT_CONFIG; }
+      try { const c = JSON.parse(localStorage.getItem(CFG_KEY)); return c ? Object.assign({}, DEFAULT_CONFIG, c, { brand: Object.assign({}, DEFAULT_CONFIG.brand, c.brand) }) : DEFAULT_CONFIG; }
       catch (e) { return DEFAULT_CONFIG; }
     },
     saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); notify(); },
+    saveBrand(brand) { const c = this.config(); c.brand = Object.assign({}, c.brand, brand); this.saveConfig(c); },
+
+    /* persisted case library (uploaded before/after cases) */
+    cases() { try { return JSON.parse(localStorage.getItem(CASES_KEY)) || []; } catch (e) { return []; } },
+    addCase(c) { const list = this.cases(); list.unshift(Object.assign({ id: 'cs_' + uid(), at: now() }, c)); localStorage.setItem(CASES_KEY, JSON.stringify(list)); notify(); return list[0]; },
+    removeCase(id) { localStorage.setItem(CASES_KEY, JSON.stringify(this.cases().filter(c => c.id !== id))); notify(); },
 
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
 
@@ -203,6 +210,7 @@
   /* ---- default practice config ------------------------------------------ */
   const DEFAULT_CONFIG = {
     doctor: { name: 'Dr. Brian Harris', role: 'Cosmetic Dentist · DMD', npi: '' },
+    brand: { name: 'Harris Smile Studio', logo: null, primary: '#0E3F3C', accent: '#E8C07D' },
     coordinators: ['Maya R.'],
     questions: [
       { type: 'text',   label: 'Is there anything specific bothering you?' },

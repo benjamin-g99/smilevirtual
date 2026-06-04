@@ -75,15 +75,20 @@ roles in the top bar.
 - **Consult workspace** (drawer): photos, goals, intake answers, and an
   **AI-drafted, personalized video script** generated from the intake — so the
   doctor riffs instead of composes (the single biggest lever on time-to-send).
-- **Consult Studio** — a presentation recorder, not a talking-head selfie. The
-  doctor presents a **slide deck auto-built from the case** (intro → patient
-  photos → smile preview → recommended plan) with their **webcam as a
+- **Consult Studio** — a **full-screen** presentation recorder, not a talking-head
+  selfie. The doctor presents a **slide deck auto-built from the case** (intro →
+  patient photos → smile preview → recommended plan) with their **webcam as a
   picture-in-picture** overlay (cyclable corners / large / full talking-head),
-  navigating slides live. They drop in **before/after slides from their own case
-  library** (seeded + uploadable — "here's someone just like you"). The slides +
-  camera are composited onto a canvas and recorded with mic via `captureStream`,
-  so the output is a reusable presentation video. Script overlays as a per-slide
-  teleprompter.
+  navigating slides live. Records in **landscape or phone-portrait (9:16)**.
+  - **Edit slides** inline (field-based): headings, body, plan items/prices,
+    captions, the per-slide teleprompter note; add blank text slides; reorder and
+    delete.
+  - **Case library** (persisted): seeded before/afters + **upload your own**
+    ("here's someone just like you"), searchable; drop any case in as a slide.
+  - **Brand theming**: set the practice logo + primary/accent colors once (🎨
+    Brand) and every slide themes to match, logo in the corner.
+  - Slides + camera are composited onto a canvas and recorded with mic via
+    `captureStream`, so the output is a reusable, branded presentation video.
 - **Patient closing-page preview** — what the patient receives: the video, the
   before/after sim slider, a ballpark plan + financing, and a **one-tap
   self-book** button (which flips the lead to Booked).

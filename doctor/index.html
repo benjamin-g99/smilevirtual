@@ -26,6 +26,7 @@
         <option value="Maya R.">Maya R. (Front desk)</option>
       </select>
     </label>
+    <button class="linkbtn" id="brandBtn" title="Brand & slide theme">🎨 Brand</button>
     <button class="linkbtn" id="resetDemo" title="Reset demo data">↺ Reset demo</button>
     <a class="linkbtn" href="../patient/" target="_blank">Patient flow ↗</a>
   </div>
@@ -65,41 +66,74 @@
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer"><!-- filled by JS --></aside>
 
-<!-- ============ CONSULT STUDIO (presentation recorder) ============ -->
-<div class="modal" id="recModal">
-  <div class="modal-card studio-card">
-    <div class="studio">
-      <div class="studio-main">
-        <div class="stage-wrap">
-          <canvas id="stage" width="1280" height="720"></canvas>
-          <video id="recVideo" playsinline autoplay muted></video>
-          <div class="rec-dot" id="recDot" hidden>● REC <span id="recTime">0:00</span></div>
-          <div class="teleprompter" id="teleprompter"></div>
-        </div>
-        <div class="slide-nav">
-          <button class="snav" onclick="DoctorApp.prevSlide()">‹</button>
-          <span id="slideCount">1 / 1</span>
-          <button class="snav" onclick="DoctorApp.nextSlide()">›</button>
-          <span class="spacer"></span>
-          <button class="snav" id="pipToggle" onclick="DoctorApp.cyclePip()">📹 Camera: bottom-right</button>
-          <button class="snav" id="teleToggle" onclick="DoctorApp.toggleTele()">📝 Script: on</button>
-        </div>
+<!-- ============ CONSULT STUDIO (full-screen presentation recorder) ============ -->
+<div class="studio-fs" id="recModal">
+  <div class="sfs-top">
+    <div class="sfs-title">🎬 Consult Studio <span id="studioPatient"></span></div>
+    <div class="seg-group">
+      <button class="seg on" id="orientLand" onclick="DoctorApp.setOrient('land')">⬛ Landscape</button>
+      <button class="seg" id="orientPort" onclick="DoctorApp.setOrient('port')">▯ Portrait</button>
+    </div>
+    <button class="linkbtn" onclick="DoctorApp.closeRecorder()">✕ Exit studio</button>
+  </div>
+
+  <div class="sfs-body">
+    <!-- left: slide list -->
+    <div class="sfs-slides">
+      <div class="ss-title">Slides <span>click to jump</span></div>
+      <div class="slide-strip" id="slideStrip"></div>
+      <button class="addslide" onclick="DoctorApp.addTextSlide()">+ Add text slide</button>
+    </div>
+
+    <!-- center: stage -->
+    <div class="sfs-stage">
+      <div class="stage-wrap" id="stageWrap">
+        <canvas id="stage" width="1280" height="720"></canvas>
+        <video id="recVideo" playsinline autoplay muted></video>
+        <div class="rec-dot" id="recDot" hidden>● REC <span id="recTime">0:00</span></div>
+        <div class="teleprompter" id="teleprompter"></div>
       </div>
-      <aside class="studio-side">
-        <div class="ss-title">Slides <span>drag-free; click to jump</span></div>
-        <div class="slide-strip" id="slideStrip"></div>
-        <div class="ss-title">Your case library <span>before / afters</span></div>
+      <div class="slide-nav">
+        <button class="snav" onclick="DoctorApp.prevSlide()">‹ Prev</button>
+        <span id="slideCount">1 / 1</span>
+        <button class="snav" onclick="DoctorApp.nextSlide()">Next ›</button>
+        <span class="spacer"></span>
+        <button class="snav" id="pipToggle" onclick="DoctorApp.cyclePip()">📹 Camera: bottom-right</button>
+        <button class="snav" id="teleToggle" onclick="DoctorApp.toggleTele()">📝 Script: on</button>
+      </div>
+    </div>
+
+    <!-- right: tabbed panel (edit / cases / brand) -->
+    <div class="sfs-panel">
+      <div class="ptabs">
+        <button class="ptab on" data-tab="edit" onclick="DoctorApp.tab('edit')">Edit slide</button>
+        <button class="ptab" data-tab="cases" onclick="DoctorApp.tab('cases')">Cases</button>
+        <button class="ptab" data-tab="brand" onclick="DoctorApp.tab('brand')">Brand</button>
+      </div>
+      <div class="pbody" id="tabEdit"></div>
+      <div class="pbody" id="tabCases" hidden>
+        <input class="search" id="caseSearch" placeholder="Search your cases…" oninput="DoctorApp.filterCases(this.value)">
         <div class="case-lib" id="caseLib"></div>
-        <label class="uploadcase">+ Upload a case<input type="file" id="caseUpload" accept="image/*" multiple hidden></label>
-      </aside>
-    </div>
-    <div class="rec-bar">
-      <button class="linkbtn" onclick="DoctorApp.closeRecorder()">Cancel</button>
-      <div class="rb-right">
-        <button class="cta-d" id="recToggle" onclick="DoctorApp.toggleRecord()">● Start recording</button>
-        <button class="cta-d ghost-d" id="recUse" onclick="DoctorApp.useRecording()" hidden>Use this take →</button>
+        <label class="uploadcase">+ Upload case images<input type="file" id="caseUpload" accept="image/*" multiple hidden></label>
       </div>
+      <div class="pbody" id="tabBrand" hidden></div>
     </div>
+  </div>
+
+  <div class="sfs-bottom">
+    <div class="sfs-hint" id="studioHint">Present the case slide-by-slide, position your camera, then record.</div>
+    <div class="rb-right">
+      <button class="cta-d" id="recToggle" onclick="DoctorApp.toggleRecord()">● Start recording</button>
+      <button class="cta-d ghost-d" id="recUse" onclick="DoctorApp.useRecording()" hidden>Use this take →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BRAND SETTINGS MODAL (also reachable from the top bar) ============ -->
+<div class="modal" id="brandModal">
+  <div class="modal-card brand-card">
+    <button class="modal-x" style="background:rgba(0,0,0,.15);color:var(--ink)" onclick="DoctorApp.closeBrand()">✕</button>
+    <div id="brandForm"></div>
   </div>
 </div>
 

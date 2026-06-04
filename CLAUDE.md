@@ -36,9 +36,11 @@ No build step, no framework, no server. Both apps share `shared/store.js`
   `persist()` which upserts the lead at every step. **Sim gate replaces the
   contact step when on.**
 - `doctor/app.js` — `DoctorApp.*`. Renders queue/dashboard, the consult drawer,
-  the **Consult Studio** (slide deck auto-built from the case + webcam PiP,
-  composited onto a `<canvas>` and recorded via `captureStream`+mic; doctors add
-  before/after slides from a case library, seeded + uploadable), and the patient
+  the **full-screen Consult Studio** (landscape/portrait slide deck auto-built
+  from the case + webcam PiP, composited onto a `<canvas>` and recorded via
+  `captureStream`+mic; field-based slide editing + add/reorder/delete; before/
+  after slides from a persisted, uploadable case library; brand theming —
+  logo+colors from `SmileStore.config().brand` applied per-frame), and the patient
   closing-page (`previewEmail`). Subscribes to `SmileStore.onChange`.
 
 ## Core principles (do not regress)

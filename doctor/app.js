@@ -23,6 +23,8 @@
     role = $('#rolePick').value;
     $('#rolePick').addEventListener('change', e=>{ role=e.target.value; render(); });
     $('#resetDemo').addEventListener('click', ()=>{ if(confirm('Reset all demo leads to the seeded set?')){ SmileStore.reset(); render(); } });
+    $('#brandBtn').addEventListener('click', openBrand);
+    $('#brandModal').addEventListener('click', e=>{ if(e.target.id==='brandModal') closeBrand(); });
     $$('.navbtn').forEach(b=>b.addEventListener('click', ()=>setView(b.dataset.view)));
     $$('.chipf').forEach(b=>b.addEventListener('click', ()=>{ activeFilter=b.dataset.filter; $$('.chipf').forEach(x=>x.classList.toggle('active',x===b)); renderQueue(); }));
     $('#scrim').addEventListener('click', closeDrawer);
@@ -284,138 +286,161 @@
     toast(map[kind]);
   }
 
-  /* ---------- CONSULT STUDIO (slides + PiP camera + case library) ----------
+  /* ---------- CONSULT STUDIO (full-screen slides + PiP camera + case library) ----------
      The doctor presents the patient's case like a screenshare with their webcam
-     picture-in-picture. We composite slides + the camera onto a canvas and
-     record THAT canvas + mic — so the output is a reusable presentation video. */
+     picture-in-picture, in landscape or phone-portrait, on brand-themed slides
+     they can edit. We composite slides + camera onto a canvas and record THAT
+     canvas + mic, so the output is a reusable, branded presentation video. */
   const PIP_MODES=[
     {k:'br', label:'bottom-right'},{k:'bl', label:'bottom-left'},
     {k:'br-lg', label:'large'},{k:'full', label:'full (talking head)'},{k:'off', label:'hidden'}
   ];
-  let studio = { id:null, lead:null, slides:[], idx:0, raf:0, pip:0, tele:true,
+  let studio = { id:null, lead:null, slides:[], idx:0, raf:0, pip:0, tele:true, orient:'land',
     camStream:null, recorder:null, chunks:[], recTimer:null, recStart:0, camReady:false };
-  let caseLibrary = null;            // lazily built {id,label,before:Image,after:Image,single?}
+  let library = [];                  // merged seed + persisted cases (with Image objects)
+  let libFilter = '';
+  let brandLogoImg = null;
   const stage = ()=>document.getElementById('stage');
   const sctx  = ()=>stage().getContext('2d');
 
   function loadImg(src){ return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; }); }
+  function imgFrom(src){ const i=new Image(); i.src=src; return i; }
+
+  /* ----- brand ----- */
+  function brand(){ const b=cfg().brand||{}; return { name:b.name||'', logo:b.logo||null, primary:b.primary||'#0E3F3C', accent:b.accent||'#E8C07D' }; }
+  function loadBrandLogo(){ const l=brand().logo; if(!l){ brandLogoImg=null; return; } if(!brandLogoImg || brandLogoImg._src!==l){ brandLogoImg=imgFrom(l); brandLogoImg._src=l; } }
 
   async function openRecorder(id){
     studio.id=id; studio.lead=SmileStore.get(id); studio.idx=0; studio.pip=0; studio.tele=true;
-    if(!caseLibrary) caseLibrary = buildCaseLibrary();
+    setOrient('land');
+    buildLibrary(); loadBrandLogo();
     studio.slides = await buildSlides(studio.lead);
-    renderStrip(); renderCaseLib();
+    $('#studioPatient').textContent='— '+displayName(studio.lead);
+    renderStrip(); renderCaseLib(); renderBrandTab(); tab('edit');
     $('#recModal').classList.add('show');
     $('#recUse').hidden=true; $('#recDot').hidden=true; $('#recVideo').classList.remove('review');
     $('#recToggle').textContent='● Start recording'; $('#recToggle').disabled=false;
     $('#teleToggle').textContent='📝 Script: on'; $('#teleprompter').classList.remove('off');
     updatePipLabel(); updateSlideUi();
-    // camera + mic (the PiP + the audio track we record)
     try{
       studio.camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:true});
       $('#recVideo').srcObject=studio.camStream; $('#recVideo').muted=true; await $('#recVideo').play().catch(()=>{});
       studio.camReady=true;
     }catch(e){
       studio.camReady=false; studio.pip=PIP_MODES.findIndex(m=>m.k==='off'); updatePipLabel();
-      toast('No camera/mic — you can still record the slides (audio needs mic permission).');
+      toast('No camera/mic — you can still build & record the slides (audio needs mic permission).');
     }
     startDraw();
   }
 
-  /* ----- slide deck built from the patient's case ----- */
+  function setOrient(o){
+    studio.orient=o; const cv=stage();
+    if(o==='port'){ cv.width=720; cv.height=1280; } else { cv.width=1280; cv.height=720; }
+    const land=o==='land';
+    document.getElementById('orientLand').classList.toggle('on',land);
+    document.getElementById('orientPort').classList.toggle('on',!land);
+  }
+
+  /* ----- slide deck built from the patient's case (editable fields) ----- */
   async function buildSlides(l){
     const script=ScriptGen.generate(l,cfg());
-    const byCue=(...cues)=>script.lines.filter(x=>cues.some(c=>x.cue.toLowerCase().includes(c)));
+    const noteFor=(...cues)=>script.lines.filter(x=>cues.some(c=>x.cue.toLowerCase().includes(c))).map(x=>x.text).join(' ');
     const slides=[];
-    slides.push({type:'intro', title:displayName(l), goals:l.goals||[], note:byCue('warm open','reflect')});
+    slides.push({kind:'intro', heading:displayName(l), sub:'Goals: '+((l.goals||[]).join(' · ')||'general consultation'),
+      note:noteFor('warm open','reflect')});
     const photoSrcs=(l.photos||[]).filter(p=>p&&p.indexOf('data:')===0);
     const imgs=await Promise.all(photoSrcs.map(loadImg));
-    slides.push({type:'photos', imgs:imgs.filter(Boolean), note:byCue('concern','recommendation')});
-    if(l.sim&&l.sim.enabled) slides.push({type:'preview', note:byCue('preview')});
-    slides.push({type:'plan', plan:planFor(l), note:byCue('timeline','next step','close')});
+    slides.push({kind:'photos', heading:'Your photos', imgs:imgs.filter(Boolean), note:noteFor('concern','recommendation')});
+    if(l.sim&&l.sim.enabled) slides.push({kind:'preview', heading:'Your smile preview',
+      caption:'Illustrative preview — your real plan is what we’re discussing now.', note:noteFor('preview')});
+    const plan=planFor(l);
+    slides.push({kind:'plan', heading:'Your recommended plan', lines:plan.lines.slice(), financing:plan.financing,
+      cta:'Next step: book your visit →', note:noteFor('timeline','next step','close')});
     return slides;
+  }
+  function addTextSlide(){
+    studio.slides.push({kind:'text', heading:'New slide', body:'Add your talking point here…', note:''});
+    renderStrip(); setSlide(studio.slides.length-1); tab('edit'); toast('Blank slide added — edit it on the right');
   }
 
   /* ----- the compositor ----- */
   function startDraw(){ cancelAnimationFrame(studio.raf); const loop=()=>{ drawStage(); studio.raf=requestAnimationFrame(loop); }; loop(); }
   function drawStage(){
-    const c=sctx(), W=1280, H=720;
+    const c=sctx(), W=stage().width, H=stage().height;
     const s=studio.slides[studio.idx]; const full = PIP_MODES[studio.pip].k==='full';
-    if(full && studio.camReady){ drawVideoCover(c,0,0,W,H); drawLowerThird(c,W,H,s); }
+    if(full && studio.camReady){ drawVideoCover(c,0,0,W,H); drawLowerThird(c,W,H); }
     else { drawSlide(c,s,W,H); if(studio.camReady && PIP_MODES[studio.pip].k!=='off') drawPip(c,W,H); }
   }
   function drawVideoCover(c,x,y,w,h){
     const v=$('#recVideo'), vw=v.videoWidth||1280, vh=v.videoHeight||720;
     const ar=vw/vh, tar=w/h; let dw,dh; if(ar>tar){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;}
     c.save(); c.beginPath(); c.rect(x,y,w,h); c.clip();
-    c.translate(x+w,y); c.scale(-1,1);          // mirror
-    c.drawImage(v, (w-dw)/2, (h-dh)/2, dw, dh);
-    c.restore();
+    c.translate(x+w,y); c.scale(-1,1); c.drawImage(v,(w-dw)/2,(h-dh)/2,dw,dh); c.restore();
   }
   function drawPip(c,W,H){
     const m=PIP_MODES[studio.pip].k; const big=m==='br-lg';
-    const w=big?420:300, h=w*9/16, pad=28;
-    const x = m==='bl' ? pad : W-w-pad;
-    const y = H-h-pad;
-    c.save(); roundRect(c,x,y,w,h,16); c.clip(); drawVideoCover(c,x,y,w,h); c.restore();
-    c.save(); roundRect(c,x,y,w,h,16); c.lineWidth=4; c.strokeStyle='#fff'; c.stroke();
-    c.shadowColor='rgba(0,0,0,.4)'; c.restore();
+    const w=Math.round(W*(big?0.34:0.24)), h=Math.round(w*9/16), pad=Math.round(W*0.02)+8;
+    const x = m==='bl' ? pad : W-w-pad, y = H-h-pad;
+    c.save(); roundRect(c,x,y,w,h,14); c.clip(); drawVideoCover(c,x,y,w,h); c.restore();
+    c.save(); roundRect(c,x,y,w,h,14); c.lineWidth=4; c.strokeStyle='#fff'; c.stroke(); c.restore();
   }
-  // slide backgrounds + content
+
+  /* slide backgrounds + content (brand-themed, orientation-aware) */
   function drawSlide(c,s,W,H){
-    // base
-    const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0E3F3C'); g.addColorStop(1,'#0A2C2A');
+    const B=brand(), port=H>W, m=Math.round(W*0.06);
+    const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,B.primary); g.addColorStop(1,darken(B.primary,34));
     c.fillStyle=g; c.fillRect(0,0,W,H);
-    c.fillStyle='#fff';
-    if(!s){ return; }
-    if(s.type==='intro'){
-      c.textAlign='left';
-      c.fillStyle='rgba(255,255,255,.55)'; c.font='600 26px Plus Jakarta Sans'; c.fillText('Personalized smile consultation', 80, 150);
-      c.fillStyle='#fff'; c.font='500 76px Fraunces'; c.fillText(s.title, 78, 250);
-      c.fillStyle='#E8C07D'; c.font='600 30px Plus Jakarta Sans';
-      c.fillText('Goals: '+(s.goals.join(' · ')||'general consultation'), 80, 330);
-      c.fillStyle='rgba(255,255,255,.7)'; c.font='500 26px Plus Jakarta Sans'; c.fillText('with '+cfg().doctor.name+', '+cfg().doctor.role.split('·').pop().trim(), 80, 640);
-    } else if(s.type==='photos'){
-      slideTitle(c,'Your photos',W);
-      if(s.imgs.length){ const n=s.imgs.length, gap=40, aw=(W-160-gap*(n-1))/n;
-        s.imgs.forEach((im,i)=>{ const x=80+i*(aw+gap), y=170, h=440; c.save(); roundRect(c,x,y,aw,h,18); c.clip(); coverImg(c,im,x,y,aw,h); c.restore(); roundStroke(c,x,y,aw,h,18); });
-      } else { placeholderNote(c,'Patient photos appear here (this demo lead used seeded placeholders).',W,H); }
-    } else if(s.type==='preview'){
-      slideTitle(c,'Your smile preview',W);
-      const bw=(W-200)/2, y=180, h=420;
-      drawSmilePanel(c,80,y,bw,h,false,'Now');
-      drawSmilePanel(c,120+bw,y,bw,h,true,'Preview');
-      c.fillStyle='rgba(255,255,255,.6)'; c.textAlign='center'; c.font='500 22px Plus Jakarta Sans';
-      c.fillText('Illustrative preview — your real plan is what we’re discussing now.', W/2, 650); c.textAlign='left';
-    } else if(s.type==='case'){
-      slideTitle(c,'A case like yours',W);
-      c.fillStyle='#E8C07D'; c.font='600 28px Plus Jakarta Sans'; c.fillText(s.case.label, 80, 150);
-      const y=185;
-      if(s.case.single){ const h=430, w=h*4/3, x=(W-w)/2; c.save(); roundRect(c,x,y,w,h,18); c.clip(); coverImg(c,s.case.single,x,y,w,h); c.restore(); roundStroke(c,x,y,w,h,18); }
-      else { const bw=(W-200)/2,h=420; imgPanel(c,80,y,bw,h,s.case.before,'Before'); imgPanel(c,120+bw,y,bw,h,s.case.after,'After'); }
-    } else if(s.type==='plan'){
-      slideTitle(c,'Your recommended plan',W);
-      c.font='500 34px Plus Jakarta Sans'; let y=230;
-      s.plan.lines.forEach(p=>{ c.fillStyle='#fff'; c.fillText('• '+p.k, 90, y); c.fillStyle='#E8C07D'; c.textAlign='right'; c.fillText(p.v, W-90, y); c.textAlign='left'; y+=64; });
-      c.fillStyle='rgba(255,255,255,.85)'; c.font='600 28px Plus Jakarta Sans'; c.fillText('Financing from '+s.plan.financing, 90, y+12);
-      c.fillStyle='#E8775B'; roundRect(c,90,H-150,420,70,16); c.fill();
-      c.fillStyle='#fff'; c.font='700 28px Plus Jakarta Sans'; c.fillText('Next step: book your visit →', 118, H-105);
+    drawLogo(c,W,m);
+    if(!s) return;
+    c.textAlign='left';
+    if(s.kind==='intro'){
+      c.fillStyle='rgba(255,255,255,.55)'; c.font='600 26px Plus Jakarta Sans'; c.fillText('Personalized smile consultation', m, 132);
+      c.fillStyle='#fff'; c.font='500 72px Fraunces'; wrapL(c, s.heading||'', m, 210, W-2*m, 76);
+      c.fillStyle=B.accent; c.font='600 30px Plus Jakarta Sans'; wrapL(c, s.sub||'', m, port?360:330, W-2*m, 38);
+      c.fillStyle='rgba(255,255,255,.7)'; c.font='500 26px Plus Jakarta Sans'; c.fillText('with '+cfg().doctor.name, m, H-70);
+    } else if(s.kind==='photos'){
+      slideTitle(c,s.heading,m,B);
+      if(s.imgs && s.imgs.length){ rects2(W,H,m,s.imgs.length,port).forEach((r,i)=>{ c.save(); roundRect(c,r.x,r.y,r.w,r.h,18); c.clip(); coverImg(c,s.imgs[i],r.x,r.y,r.w,r.h); c.restore(); roundStroke(c,r.x,r.y,r.w,r.h,18); }); }
+      else placeholderNote(c,'Patient photos appear here (this demo lead used seeded placeholders).',W,H);
+    } else if(s.kind==='preview'){
+      slideTitle(c,s.heading,m,B); const r=rects2(W,H,m,2,port);
+      drawSmilePanel(c,r[0].x,r[0].y,r[0].w,r[0].h,false,'Now');
+      drawSmilePanel(c,r[1].x,r[1].y,r[1].w,r[1].h,true,'Preview');
+      c.fillStyle='rgba(255,255,255,.65)'; c.textAlign='center'; c.font='500 22px Plus Jakarta Sans'; wrapL(c,s.caption||'',W/2,H-60,W-2*m,28); c.textAlign='left';
+    } else if(s.kind==='case'){
+      slideTitle(c,s.heading,m,B); const top=port?H*0.16:160;
+      if(s.single){ const h=port?W*0.9:H*0.62, w=h*4/3, x=(W-w)/2; c.save(); roundRect(c,x,top,Math.min(w,W-2*m),h,18); c.clip(); coverImg(c,s.before,x,top,Math.min(w,W-2*m),h); c.restore(); roundStroke(c,x,top,Math.min(w,W-2*m),h,18); }
+      else { const r=rects2(W,H,m,2,port); imgPanel(c,r[0].x,r[0].y,r[0].w,r[0].h,s.before,'Before'); imgPanel(c,r[1].x,r[1].y,r[1].w,r[1].h,s.after,'After'); }
+    } else if(s.kind==='plan'){
+      slideTitle(c,s.heading,m,B); let y=port?H*0.2:210; c.font='500 34px Plus Jakarta Sans';
+      (s.lines||[]).forEach(p=>{ c.textAlign='left'; c.fillStyle='#fff'; c.fillText('• '+p.k, m+10, y); c.textAlign='right'; c.fillStyle=B.accent; c.fillText(p.v||'', W-m, y); y+=58; });
+      c.textAlign='left'; c.fillStyle='rgba(255,255,255,.85)'; c.font='600 26px Plus Jakarta Sans'; if(s.financing) c.fillText('Financing from '+s.financing, m+10, y+8);
+      c.fillStyle='#E8775B'; roundRect(c,m,H-150,Math.min(460,W-2*m),68,16); c.fill();
+      c.fillStyle='#fff'; c.font='700 26px Plus Jakarta Sans'; c.fillText(s.cta||'Book your visit →', m+26, H-108);
+    } else if(s.kind==='text'){
+      slideTitle(c,s.heading,m,B); c.fillStyle='rgba(255,255,255,.9)'; c.font='400 30px Plus Jakarta Sans';
+      wrapL(c,s.body||'', m, port?H*0.18:200, W-2*m, 42);
     }
   }
-  function drawLowerThird(c,W,H,s){ // when talking-head full, show a caption strip
-    c.fillStyle='rgba(10,40,38,.78)'; c.fillRect(0,H-110,W,110);
-    c.fillStyle='#fff'; c.font='600 30px Plus Jakarta Sans'; c.textAlign='left';
-    c.fillText(cfg().doctor.name+' — '+displayName(studio.lead), 60, H-50);
+  function drawLogo(c,W,m){ if(!brandLogoImg||!brandLogoImg.complete||!brandLogoImg.naturalWidth) return;
+    const h=Math.round(stage().height*0.07), w=h*(brandLogoImg.width/brandLogoImg.height); c.drawImage(brandLogoImg, W-m-w, m-14, w, h); }
+  function drawLowerThird(c,W,H){ const B=brand(); c.fillStyle='rgba(10,40,38,.78)'; c.fillRect(0,H-110,W,110);
+    c.fillStyle=B.accent; c.font='600 30px Plus Jakarta Sans'; c.textAlign='left'; c.fillText(cfg().doctor.name+' — '+displayName(studio.lead), 50, H-50); }
+  function slideTitle(c,t,m,B){ c.fillStyle='#fff'; c.font='500 50px Fraunces'; c.textAlign='left'; c.fillText(t||'',m,108);
+    c.strokeStyle=B.accent; c.globalAlpha=.7; c.lineWidth=3; c.beginPath(); c.moveTo(m+2,126); c.lineTo(m+2+Math.min((t||'').length*20,360),126); c.stroke(); c.globalAlpha=1; }
+  function placeholderNote(c,t,W,H){ c.fillStyle='rgba(255,255,255,.5)'; c.font='500 26px Plus Jakarta Sans'; c.textAlign='center'; wrapL(c,t,W/2,H/2,W-300,36); c.textAlign='left'; }
+  // two-panel layout: side-by-side (landscape) or stacked (portrait)
+  function rects2(W,H,m,n,port){
+    if(port){ const w=W-2*m, gap=24, h=(H*0.66 - gap*(n-1))/n, top=H*0.18; const out=[]; for(let i=0;i<n;i++) out.push({x:m,y:top+i*(h+gap),w,h}); return out; }
+    const gap=30, w=(W-2*m-gap*(n-1))/n, h=H*0.56, top=H*0.22; const out=[]; for(let i=0;i<n;i++) out.push({x:m+i*(w+gap),y:top,w,h}); return out;
   }
-  function slideTitle(c,t,W){ c.fillStyle='#fff'; c.font='500 52px Fraunces'; c.textAlign='left'; c.fillText(t,80,120);
-    c.strokeStyle='rgba(232,192,125,.6)'; c.lineWidth=3; c.beginPath(); c.moveTo(82,138); c.lineTo(82+t.length*22,138); c.stroke(); }
-  function placeholderNote(c,t,W,H){ c.fillStyle='rgba(255,255,255,.5)'; c.font='500 26px Plus Jakarta Sans'; c.textAlign='center'; wrap(c,t,W/2,H/2,W-300,36); c.textAlign='left'; }
   function coverImg(c,im,x,y,w,h){ if(!im||!im.complete||!im.naturalWidth)return; const ar=im.width/im.height,tar=w/h;let dw,dh;if(ar>tar){dh=h;dw=h*ar;}else{dw=w;dh=w/ar;}c.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); }
-  function imgPanel(c,x,y,w,h,im,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip(); if(im)coverImg(c,im,x,y,w,h); else {c.fillStyle='#163f3c';c.fillRect(x,y,w,h);} c.restore(); roundStroke(c,x,y,w,h,18); tagLabel(c,x+14,y+14,label); }
-  function tagLabel(c,x,y,t){ c.fillStyle='rgba(0,0,0,.5)'; const w=t.length*11+20; roundRect(c,x,y,w,30,8); c.fill(); c.fillStyle='#fff'; c.font='700 16px Plus Jakarta Sans'; c.fillText(t,x+10,y+21); }
+  function imgPanel(c,x,y,w,h,im,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip(); if(im)coverImg(c,im,x,y,w,h); else {c.fillStyle='rgba(255,255,255,.08)';c.fillRect(x,y,w,h);} c.restore(); roundStroke(c,x,y,w,h,18); tagLabel(c,x+14,y+14,label); }
+  function tagLabel(c,x,y,t){ c.fillStyle='rgba(0,0,0,.5)'; const w=t.length*11+20; roundRect(c,x,y,w,30,8); c.fill(); c.fillStyle='#fff'; c.font='700 16px Plus Jakarta Sans'; c.textAlign='left'; c.fillText(t,x+10,y+21); }
   function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
   function roundStroke(c,x,y,w,h,r){ c.save(); roundRect(c,x,y,w,h,r); c.lineWidth=3; c.strokeStyle='rgba(255,255,255,.25)'; c.stroke(); c.restore(); }
-  function wrap(c,t,cx,cy,maxw,lh){ const words=t.split(' ');let line='',y=cy;const lines=[];words.forEach(w=>{const test=line+w+' ';if(c.measureText(test).width>maxw){lines.push(line);line=w+' ';}else line=test;});lines.push(line);const start=y-(lines.length-1)*lh/2;lines.forEach((ln,i)=>c.fillText(ln.trim(),cx,start+i*lh)); }
+  function wrapL(c,t,x,y,maxw,lh){ const words=String(t).split(' ');let line='',yy=y;words.forEach(w=>{const test=line+w+' ';if(c.measureText(test).width>maxw && line){c.fillText(line.trim(),x,yy);line=w+' ';yy+=lh;}else line=test;});c.fillText(line.trim(),x,yy); }
+  function darken(hex,amt){ const n=parseInt(hex.replace('#',''),16); let r=Math.max(0,(n>>16)-amt),g=Math.max(0,((n>>8)&255)-amt),b=Math.max(0,(n&255)-amt); return '#'+(r<<16|g<<8|b).toString(16).padStart(6,'0'); }
   function drawSmilePanel(c,x,y,w,h,after,label){ c.save(); roundRect(c,x,y,w,h,18); c.clip();
     const sk=c.createLinearGradient(x,y,x,y+h); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(x,y,w,h);
     const cx=x+w/2,cy=y+h/2,mw=w*0.6,mh=mw*0.42;
@@ -431,71 +456,170 @@
   function setSlide(i){ studio.idx=Math.max(0,Math.min(studio.slides.length-1,i)); updateSlideUi(); }
   function prevSlide(){ setSlide(studio.idx-1); }
   function nextSlide(){ setSlide(studio.idx+1); }
+  function gotoSlide(i){ setSlide(i); }
+  function moveSlide(dir){ const i=studio.idx, j=i+dir; if(j<0||j>=studio.slides.length) return; const a=studio.slides; [a[i],a[j]]=[a[j],a[i]]; studio.idx=j; renderStrip(); updateSlideUi(); }
+  function removeSlide(i){ if(studio.slides.length<=1) return; studio.slides.splice(i,1); if(studio.idx>=studio.slides.length)studio.idx=studio.slides.length-1; renderStrip(); updateSlideUi(); }
   function updateSlideUi(){
     $('#slideCount').textContent=(studio.idx+1)+' / '+studio.slides.length;
-    $$('.sthumb').forEach((el,i)=>el.classList.toggle('cur',i===studio.idx));
-    const s=studio.slides[studio.idx]; const notes=(s&&s.note&&s.note.length)?s.note:[{cue:'',text:''}];
-    $('#teleprompter').innerHTML = notes.map(n=>`<div class="tl">${n.cue?`<b>${esc(n.cue)}</b>`:''}${esc(n.text)}</div>`).join('');
+    document.querySelectorAll('.sthumb').forEach((el,i)=>el.classList.toggle('cur',i===studio.idx));
+    const s=studio.slides[studio.idx];
+    $('#teleprompter').innerHTML = (s&&s.note)? `<div class="tl">${esc(s.note)}</div>` : '';
+    renderEditPanel();
   }
   function cyclePip(){ studio.pip=(studio.pip+1)%PIP_MODES.length; updatePipLabel(); }
   function updatePipLabel(){ $('#pipToggle').textContent='📹 Camera: '+PIP_MODES[studio.pip].label; }
   function toggleTele(){ studio.tele=!studio.tele; $('#teleprompter').classList.toggle('off',!studio.tele); $('#teleToggle').textContent='📝 Script: '+(studio.tele?'on':'off'); }
 
-  /* ----- case library ----- */
-  function buildCaseLibrary(){
-    const mk=(label,beforeOpts,afterOpts)=>({id:'c'+Math.random().toString(36).slice(2,6),label,
-      before:caseImg(beforeOpts), after:caseImg(afterOpts)});
+  /* ----- right-panel tabs ----- */
+  function tab(name){
+    document.querySelectorAll('.ptab').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
+    $('#tabEdit').hidden=name!=='edit'; $('#tabCases').hidden=name!=='cases'; $('#tabBrand').hidden=name!=='brand';
+  }
+
+  /* ----- slide editor (field-based) ----- */
+  const KIND_LABEL={intro:'Intro slide',photos:'Patient photos',preview:'Smile preview',case:'Case study',plan:'Recommended plan',text:'Text slide'};
+  function renderEditPanel(){
+    const s=studio.slides[studio.idx]; if(!s){ $('#tabEdit').innerHTML=''; return; }
+    let html=`<span class="kindtag">${KIND_LABEL[s.kind]||s.kind}</span>`;
+    const txt=(prop,label,val)=>`<div class="fld"><label>${label}</label><input type="text" value="${esc(val||'')}" oninput="DoctorApp.edit('${prop}',this.value)"></div>`;
+    const area=(prop,label,val,hint)=>`<div class="fld"><label>${label}</label><textarea oninput="DoctorApp.edit('${prop}',this.value)">${esc(val||'')}</textarea>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+    if(s.kind==='intro'){ html+=txt('heading','Patient name / title',s.heading)+txt('sub','Subhead (goals)',s.sub); }
+    else if(s.kind==='photos'){ html+=txt('heading','Heading',s.heading)+`<div class="hint">Photos come from the patient's submission.</div>`; }
+    else if(s.kind==='preview'){ html+=txt('heading','Heading',s.heading)+area('caption','Caption',s.caption); }
+    else if(s.kind==='case'){ html+=txt('heading','Case label',s.heading)+`<div class="hint">Swap the case from the Cases tab.</div>`; }
+    else if(s.kind==='text'){ html+=txt('heading','Heading',s.heading)+area('body','Body',s.body); }
+    else if(s.kind==='plan'){ html+=txt('heading','Heading',s.heading)
+      +area('_lines','Plan items (one per line: Item | Price)', (s.lines||[]).map(l=>`${l.k} | ${l.v||''}`).join('\n'),'Edit the bullets and prices.')
+      +txt('financing','Financing from',s.financing)+txt('cta','Call-to-action',s.cta); }
+    html+=area('note','Teleprompter note',s.note,'Shows over the video while you record this slide.');
+    html+=`<div class="editrow"><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(-1)">↑ Up</button><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(1)">↓ Down</button>${studio.slides.length>1?`<button class="cta-d delbtn" onclick="DoctorApp.removeSlide(${studio.idx})">Delete</button>`:''}</div>`;
+    $('#tabEdit').innerHTML=html;
+  }
+  function edit(prop,val){
+    const s=studio.slides[studio.idx]; if(!s) return;
+    if(prop==='_lines'){ s.lines=val.split('\n').filter(x=>x.trim()).map(line=>{const [k,v]=line.split('|');return {k:(k||'').trim(),v:(v||'').trim()};}); }
+    else s[prop]=val;
+    if(prop==='heading'||prop==='note') renderStrip();
+    if(prop==='note'){ const cur=studio.slides[studio.idx]; $('#teleprompter').innerHTML=cur.note?`<div class="tl">${esc(cur.note)}</div>`:''; }
+    document.querySelectorAll('.sthumb').forEach((el,i)=>el.classList.toggle('cur',i===studio.idx));
+  }
+
+  /* ----- case library (seeded + persisted uploads) ----- */
+  function buildLibrary(){
+    library = SEED_CASES().concat(SmileStore.cases().map(c=>Object.assign({persisted:true}, c)));
+    library.forEach(c=>{ c.beforeImg=imgFrom(c.before); if(c.after) c.afterImg=imgFrom(c.after); });
+  }
+  function SEED_CASES(){
     return [
-      mk('Diastema closure · veneers',{gap:true,shade:'#E2D4AE'},{shade:'#fff'}),
-      mk('Whitening + bonding',{shade:'#D8C58E'},{shade:'#fff'}),
-      mk('Full veneer makeover',{gap:true,chip:true,shade:'#D9C9A0'},{shade:'#fff'}),
-      mk('Chipped front tooth',{chip:true,shade:'#E7DCB8'},{shade:'#FBFBF6'})
+      {id:'sd1',label:'Diastema closure · veneers',tags:'gap veneers',before:caseDataURL({gap:true,shade:'#E2D4AE'}),after:caseDataURL({shade:'#fff'})},
+      {id:'sd2',label:'Whitening + bonding',tags:'whitening',before:caseDataURL({shade:'#D8C58E'}),after:caseDataURL({shade:'#fff'})},
+      {id:'sd3',label:'Full veneer makeover',tags:'veneers makeover',before:caseDataURL({gap:true,chip:true,shade:'#D9C9A0'}),after:caseDataURL({shade:'#fff'})},
+      {id:'sd4',label:'Chipped front tooth',tags:'chip bonding',before:caseDataURL({chip:true,shade:'#E7DCB8'}),after:caseDataURL({shade:'#FBFBF6'})},
+      {id:'sd5',label:'Gummy smile reshaping',tags:'gums',before:caseDataURL({shade:'#E0D2A8'}),after:caseDataURL({shade:'#fff'})},
+      {id:'sd6',label:'Aligners — crowding',tags:'aligners straighten',before:caseDataURL({gap:true,shade:'#E2D4AE'}),after:caseDataURL({shade:'#FAFAF4'})}
     ];
   }
-  function caseImg(o){ const cv=document.createElement('canvas'); cv.width=200; cv.height=150; const c=cv.getContext('2d');
+  function caseDataURL(o){ const cv=document.createElement('canvas'); cv.width=200; cv.height=150; const c=cv.getContext('2d');
     const sk=c.createLinearGradient(0,0,0,150); sk.addColorStop(0,'#E8C4A8'); sk.addColorStop(1,'#D29A78'); c.fillStyle=sk; c.fillRect(0,0,200,150);
     const cx=100,cy=80,mw=120,mh=52; c.fillStyle='#B65C5C'; c.beginPath(); c.ellipse(cx,cy,mw/2+10,mh/2+10,0,0,7); c.fill();
     c.fillStyle='#5E2230'; c.beginPath(); c.ellipse(cx,cy,mw/2,mh/2,0,0,7); c.fill();
     c.save(); c.beginPath(); c.ellipse(cx,cy-2,mw/2-4,mh/2-3,0,0,7); c.clip();
     const n=8,gap=2,tw=(mw-8)/n,x0=cx-(mw-8)/2,ty=cy-mh/2+2;
     for(let i=0;i<n;i++){let x=x0+i*tw,h=mh-8,y=ty;c.fillStyle=o.shade;if(o.gap&&i===4)x+=4;if(o.chip&&i===3)h-=8;c.fillRect(x,y,tw-gap,h);} c.restore();
-    const img=new Image(); img.src=cv.toDataURL('image/jpeg',0.8); return img;
+    return cv.toDataURL('image/jpeg',0.8);
   }
+  function filterCases(v){ libFilter=(v||'').toLowerCase(); renderCaseLib(); }
   function renderCaseLib(){
     const box=$('#caseLib'); box.innerHTML='';
-    caseLibrary.forEach(cs=>{
+    library.filter(cs=>!libFilter || (cs.label+' '+(cs.tags||'')).toLowerCase().includes(libFilter)).forEach(cs=>{
       const el=document.createElement('div'); el.className='casecard'; el.title='Add “'+cs.label+'” as a slide';
-      el.innerHTML=`<div class="thumbs"></div><div class="cl">${esc(cs.label)}</div>`;
-      const th=el.querySelector('.thumbs');
-      [cs.before,cs.single?null:cs.after].filter(Boolean).forEach(im=>{ const cnv=document.createElement('canvas'); cnv.width=100;cnv.height=54; const cc=cnv.getContext('2d'); const draw=()=>cc.drawImage(im,0,0,100,54); if(im.complete)draw(); else im.onload=draw; th.appendChild(cnv); });
-      el.onclick=()=>addCaseSlide(cs);
+      const imgs = cs.after ? `<img src="${cs.before}"><img src="${cs.after}">` : `<img class="solo" src="${cs.before}">`;
+      el.innerHTML=`<div class="thumbs">${imgs}</div><div class="cl">${esc(cs.label)}</div>`+
+        (cs.persisted?`<button class="cx" title="Remove from library">✕</button>`:'');
+      el.querySelector('.thumbs').onclick=()=>addCaseSlide(cs);
+      el.querySelector('.cl').onclick=()=>addCaseSlide(cs);
+      const cx=el.querySelector('.cx'); if(cx) cx.onclick=(e)=>{ e.stopPropagation(); SmileStore.removeCase(cs.id); buildLibrary(); renderCaseLib(); toast('Removed from library'); };
       box.appendChild(el);
     });
+    if(!box.children.length) box.innerHTML='<div class="hint" style="grid-column:1/-1">No matching cases.</div>';
     $('#caseUpload').onchange=onCaseUpload;
   }
   function addCaseSlide(cs){
-    const note=[{cue:'Show a similar case', text:`Here’s a patient who started in a similar place — this is the kind of result we can aim for.`}];
-    studio.slides.push({type:'case', case:cs, note});
+    studio.slides.push({kind:'case', heading:cs.label, before:cs.beforeImg||imgFrom(cs.before),
+      after:cs.after?(cs.afterImg||imgFrom(cs.after)):null, single:!cs.after,
+      note:'Here’s a patient who started in a similar place — this is the kind of result we can aim for.'});
     renderStrip(); setSlide(studio.slides.length-1); toast('Added “'+cs.label+'” as a slide');
   }
   async function onCaseUpload(e){
-    const files=[...e.target.files]; for(const f of files){ const url=await fileToDataUrl(f); const img=await loadImg(url);
-      const cs={id:'up'+Math.random().toString(36).slice(2,6), label:f.name.replace(/\.[^.]+$/,'').slice(0,22), single:img, before:img};
-      caseLibrary.push(cs); }
-    renderCaseLib(); toast(files.length+' case image(s) added to your library');
+    const files=[...e.target.files];
+    for(const f of files){ const url=await fileToDataUrl(f); const img=await loadImg(url); if(!img) continue;
+      const thumb=downscale(img,460);
+      SmileStore.addCase({label:f.name.replace(/\.[^.]+$/,'').slice(0,26), tags:'uploaded', before:thumb, single:true});
+    }
+    buildLibrary(); renderCaseLib(); toast(files.length+' case image(s) saved to your library');
     e.target.value='';
   }
+  function downscale(img,max){ const r=Math.min(1,max/Math.max(img.width,img.height)); const w=Math.round(img.width*r),h=Math.round(img.height*r);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); return c.toDataURL('image/jpeg',0.72); }
   function fileToDataUrl(f){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); }); }
+
   function renderStrip(){
-    const ICON={intro:'👋',photos:'🖼️',preview:'✨',case:'🦷',plan:'📋'};
+    const ICON={intro:'👋',photos:'🖼️',preview:'✨',case:'🦷',plan:'📋',text:'💬'};
     $('#slideStrip').innerHTML=studio.slides.map((s,i)=>{
-      const label={intro:'Intro',photos:'Patient photos',preview:'Smile preview',case:(s.case&&s.case.label)||'Case',plan:'Recommended plan'}[s.type];
-      const rm = s.type==='case' ? `<span class="rm" onclick="event.stopPropagation();DoctorApp.removeSlide(${i})">✕</span>`:'';
-      return `<div class="sthumb ${i===studio.idx?'cur':''}" onclick="DoctorApp.gotoSlide(${i})"><span class="si">${ICON[s.type]}</span>${esc(label)}${rm}</div>`;
+      const label=s.heading||KIND_LABEL[s.kind]||s.kind;
+      const rm = `<span class="rm" onclick="event.stopPropagation();DoctorApp.removeSlide(${i})">✕</span>`;
+      return `<div class="sthumb ${i===studio.idx?'cur':''}" onclick="DoctorApp.gotoSlide(${i})"><span class="num">${i+1}</span><span class="si">${ICON[s.kind]||'▫'}</span><span class="lbl">${esc(label)}</span>${studio.slides.length>1?rm:''}</div>`;
     }).join('');
   }
-  function gotoSlide(i){ setSlide(i); }
-  function removeSlide(i){ if(studio.slides[i] && studio.slides[i].type==='case'){ studio.slides.splice(i,1); if(studio.idx>=studio.slides.length)studio.idx=studio.slides.length-1; renderStrip(); updateSlideUi(); } }
+
+  /* ----- brand setup (one practice brand; themes the slides live) ----- */
+  function renderBrandTab(){
+    const B=brand();
+    $('#tabBrand').innerHTML=`
+      <div class="hint" style="margin-bottom:12px">Your brand themes every slide — colors, and your logo in the corner.</div>
+      <div class="swatchrow">
+        <div class="swatch"><label>Slide color</label><div style="height:38px;border-radius:9px;border:1.5px solid var(--line);background:${B.primary}"></div></div>
+        <div class="swatch"><label>Accent</label><div style="height:38px;border-radius:9px;border:1.5px solid var(--line);background:${B.accent}"></div></div>
+      </div>
+      <div class="fld"><label>Practice name</label><input type="text" value="${esc(B.name)}" disabled></div>
+      <button class="cta-d" style="width:100%;justify-content:center" onclick="DoctorApp.openBrand()">🎨 Edit brand & theme</button>`;
+  }
+  function brandFormHtml(){
+    const B=brand();
+    return `<h3 style="font-family:var(--display);font-weight:500;font-size:22px;color:var(--teal-deep);margin-bottom:4px">Brand & slide theme</h3>
+      <p class="muted small" style="margin-bottom:18px">Set once — applies to every Consult Studio slide.</p>
+      <label class="logo-drop" for="logoUp"><div class="lp" id="logoPrev">${B.logo?`<img src="${B.logo}">`:'<span style="font-size:22px">🦷</span>'}</div>
+        <div><b style="font-size:13.5px">Practice logo</b><div class="hint">PNG/SVG with transparency works best. Shown top-right on slides.</div></div>
+        <input type="file" id="logoUp" accept="image/*" hidden></label>
+      <div class="swatchrow">
+        <div class="swatch"><label>Slide color</label><input type="color" id="cPrimary" value="${B.primary}"></div>
+        <div class="swatch"><label>Accent color</label><input type="color" id="cAccent" value="${B.accent}"></div>
+      </div>
+      <div class="fld"><label>Practice name</label><input type="text" id="bName" value="${esc(B.name)}"></div>
+      <div class="brand-prev"><canvas id="brandPrev" width="420" height="236"></canvas></div>
+      <button class="cta-d" style="width:100%;justify-content:center" onclick="DoctorApp.closeBrand()">Done</button>`;
+  }
+  function openBrand(){
+    loadBrandLogo();
+    $('#brandForm').innerHTML=brandFormHtml();
+    $('#cPrimary').oninput=e=>{ SmileStore.saveBrand({primary:e.target.value}); drawBrandPrev(); refreshBrand(); };
+    $('#cAccent').oninput=e=>{ SmileStore.saveBrand({accent:e.target.value}); drawBrandPrev(); refreshBrand(); };
+    $('#bName').oninput=e=>{ SmileStore.saveBrand({name:e.target.value}); drawBrandPrev(); };
+    $('#logoUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
+      const logo=downscalePng(img,240); SmileStore.saveBrand({logo}); $('#logoPrev').innerHTML=`<img src="${logo}">`; loadBrandLogo(); drawBrandPrev(); };
+    $('#brandModal').classList.add('show'); drawBrandPrev();
+  }
+  function refreshBrand(){ renderBrandTab(); }
+  function closeBrand(){ $('#brandModal').classList.remove('show'); renderBrandTab(); }
+  function downscalePng(img,max){ const r=Math.min(1,max/Math.max(img.width,img.height)); const w=Math.round(img.width*r),h=Math.round(img.height*r);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); return c.toDataURL('image/png'); }
+  function drawBrandPrev(){ const cv=$('#brandPrev'); if(!cv) return; const c=cv.getContext('2d'),W=cv.width,H=cv.height,B=brand();
+    const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,B.primary); g.addColorStop(1,darken(B.primary,34)); c.fillStyle=g; c.fillRect(0,0,W,H);
+    c.fillStyle='#fff'; c.font='500 26px Fraunces'; c.fillText('Your recommended plan',26,52);
+    c.fillStyle=B.accent; c.font='600 16px Plus Jakarta Sans'; c.fillText('Veneers · Whitening',26,84);
+    c.fillStyle='rgba(255,255,255,.85)'; c.font='400 14px Plus Jakarta Sans'; c.fillText('with '+(B.name||'your practice'),26,H-24);
+    if(brandLogoImg&&brandLogoImg.complete&&brandLogoImg.naturalWidth){ const lh=40,lw=lh*(brandLogoImg.width/brandLogoImg.height); c.drawImage(brandLogoImg,W-lw-20,16,lw,lh); }
+  }
 
   /* ----- recording the composited canvas + mic ----- */
   function pickMime(){ return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||''; }
@@ -521,7 +645,7 @@
   }
   function useRecording(){
     const rec=recordedBlobs[studio.id];
-    SmileStore.saveVideo(studio.id,{durationSec:rec?rec.dur:0, hasRecording:true, slides:studio.slides.length});
+    SmileStore.saveVideo(studio.id,{durationSec:rec?rec.dur:0, hasRecording:true, slides:studio.slides.length, orient:studio.orient});
     closeRecorder(); toast('Presentation saved. Ready to send.');
   }
   function closeRecorder(){
@@ -616,6 +740,7 @@
 
   global.DoctorApp = { openLead, closeDrawer, assign, toggleTag, addNote, copyScript, sendVideo, simulate, nudge,
     openRecorder, toggleRecord, useRecording, closeRecorder, previewEmail, closeEmail, bookFromEmail,
-    prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide };
+    prevSlide, nextSlide, cyclePip, toggleTele, gotoSlide, removeSlide,
+    setOrient, addTextSlide, tab, filterCases, moveSlide, edit, openBrand, closeBrand };
   document.addEventListener('DOMContentLoaded', boot);
 })(window);
