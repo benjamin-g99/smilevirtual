@@ -15,7 +15,7 @@
   const CFG_KEY = 'smilevirtual.config.v1';
   const CASES_KEY = 'smilevirtual.cases.v1';
   const CLICKS_KEY = 'smilevirtual.clicks.v1';
-  const SEEDED_KEY = 'smilevirtual.seeded.v5';
+  const SEEDED_KEY = 'smilevirtual.seeded.v6';
 
   /* ---- SLA + status model -------------------------------------------------
      The portal's north-star is MEDIAN TIME-TO-SEND. Target SLA below. */
@@ -329,12 +329,22 @@
     },
 
     /* ---- link-in-bio + click tracking --------------------------------- */
+    // clicks are stored as TIMESTAMPED events so reporting can filter by date range
     trackClick(linkId) {
-      let m = {}; try { m = JSON.parse(localStorage.getItem(CLICKS_KEY)) || {}; } catch (e) {}
-      m[linkId] = (m[linkId] || 0) + 1;
-      localStorage.setItem(CLICKS_KEY, JSON.stringify(m)); notify();
+      let evs; try { evs = JSON.parse(localStorage.getItem(CLICKS_KEY)); } catch (e) { evs = null; }
+      if (!Array.isArray(evs)) evs = [];
+      evs.push({ id: linkId, at: now() });
+      localStorage.setItem(CLICKS_KEY, JSON.stringify(evs)); notify();
     },
-    clickStats() { try { return JSON.parse(localStorage.getItem(CLICKS_KEY)) || {}; } catch (e) { return {}; } },
+    // returns { linkId: count }, optionally filtered to { from, to } ms. Back-compat
+    // with the legacy count-object form (returned as-is, unfilterable).
+    clickStats(range) {
+      let evs; try { evs = JSON.parse(localStorage.getItem(CLICKS_KEY)); } catch (e) { evs = null; }
+      if (!Array.isArray(evs)) return (evs && typeof evs === 'object') ? evs : {};
+      const from = range && range.from, to = range && range.to, m = {};
+      evs.forEach(e => { const t = new Date(e.at).getTime(); if (from && t < from) return; if (to && t > to) return; m[e.id] = (m[e.id] || 0) + 1; });
+      return m;
+    },
 
     reset() { [KEY, SEEDED_KEY, CLICKS_KEY].forEach(k => localStorage.removeItem(k)); this.seed(); notify(); },
 
@@ -342,7 +352,7 @@
     seed(force) {
       if (!force && localStorage.getItem(SEEDED_KEY)) return;
       localStorage.setItem(KEY, JSON.stringify(SEED()));
-      localStorage.setItem(CLICKS_KEY, JSON.stringify({ primary: 84, lk_book: 31, lk_site: 22, lk_ig: 18 }));
+      localStorage.setItem(CLICKS_KEY, JSON.stringify(SEED_CLICKS()));
       localStorage.setItem(SEEDED_KEY, '1');
       notify();
     },
@@ -380,6 +390,19 @@
     spendBySource: { google: 900, facebook: 700, instagram: 500, tiktok: 300 },   // monthly spend per PAID channel (demo) — drives ROAS/CPA
     widgets: { target: '', headline: 'See your new smile — free', cta: '✨ Free Smile Preview' }
   };
+
+  /* ---- seed timestamped link taps spread over the last ~90 days --------- */
+  function SEED_CLICKS() {
+    const counts = { primary: 84, lk_book: 31, lk_site: 22, lk_ig: 18 };
+    const evs = [], now = Date.now();
+    Object.keys(counts).forEach(id => {
+      for (let i = 0; i < counts[id]; i++) {
+        const daysAgo = Math.pow(Math.random(), 1.4) * 90;   // skew toward recent
+        evs.push({ id, at: new Date(now - daysAgo * 864e5).toISOString() });
+      }
+    });
+    return evs;
+  }
 
   /* ---- seed leads: a realistic, alive queue ------------------------------ */
   function hoursAgo(h) { return new Date(Date.now() - h * 36e5).toISOString(); }

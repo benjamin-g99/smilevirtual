@@ -228,21 +228,7 @@
     if(perfTab==='links'){ $('#perf').innerHTML = subnav + renderLinkPerf(); return; }
     const m = SmileStore.metrics(), a = SmileStore.analytics(perfRange), cv=a.conversion;
     const money = n => '$'+(n||0).toLocaleString();
-    const RANGES=[['all','All time'],['90','Last 90 days'],['month','Last month'],['custom','Custom range']];
-    const fmt = ms => new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-    const rlabel = perfRange.key==='all' ? 'All time'
-      : perfRange.key==='90' ? 'Last 90 days'
-      : perfRange.key==='month' ? 'Last 30 days'
-      : (perfRange.from||perfRange.to) ? `${perfRange.from?fmt(perfRange.from):'…'} → ${perfRange.to?fmt(perfRange.to):'now'}` : 'Pick dates';
-    let html = subnav + `<div class="perfbar">
-      <div class="seg-group">${RANGES.map(([k,l])=>`<button class="seg ${perfRange.key===k?'on':''}" onclick="DoctorApp.setPerfRange('${k}')">${l}</button>`).join('')}</div>
-      <div class="daterange" ${perfRange.key==='custom'?'':'hidden'}>
-        <input type="date" id="perfFrom" value="${perfRange.from?new Date(perfRange.from).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
-        <span>→</span>
-        <input type="date" id="perfTo" value="${perfRange.to?new Date(perfRange.to).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
-      </div>
-      <span class="rangelabel">📅 ${esc(rlabel)} · <b>${a.funnel[0].count}</b> leads</span>
-    </div>`;
+    let html = subnav + rangeBarHtml(' · <b>'+a.funnel[0].count+'</b> leads');
     // headline KPIs
     const kpis = [
       ['Median time-to-send', m.medianTimeToSendH==null?'—':m.medianTimeToSendH+'h', m.overdue>0?m.overdue+' overdue':'on pace', m.overdue>0],
@@ -305,33 +291,54 @@
     $('#perf').innerHTML = html;
   }
   function setPerfTab(tab){ perfTab=tab; renderPerf(); }
+  // shared time-range control (used by both Performance sub-tabs)
+  function rangeBarHtml(suffixHtml){
+    const RANGES=[['all','All time'],['90','Last 90 days'],['month','Last month'],['custom','Custom range']];
+    const fmt = ms => new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    const rlabel = perfRange.key==='all' ? 'All time'
+      : perfRange.key==='90' ? 'Last 90 days'
+      : perfRange.key==='month' ? 'Last 30 days'
+      : (perfRange.from||perfRange.to) ? `${perfRange.from?fmt(perfRange.from):'…'} → ${perfRange.to?fmt(perfRange.to):'now'}` : 'Pick dates';
+    return `<div class="perfbar">
+      <div class="seg-group">${RANGES.map(([k,l])=>`<button class="seg ${perfRange.key===k?'on':''}" onclick="DoctorApp.setPerfRange('${k}')">${l}</button>`).join('')}</div>
+      <div class="daterange" ${perfRange.key==='custom'?'':'hidden'}>
+        <input type="date" id="perfFrom" value="${perfRange.from?new Date(perfRange.from).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
+        <span>→</span>
+        <input type="date" id="perfTo" value="${perfRange.to?new Date(perfRange.to).toISOString().slice(0,10):''}" onchange="DoctorApp.setPerfRange('custom')">
+      </div>
+      <span class="rangelabel">📅 ${esc(rlabel)}${suffixHtml||''}</span>
+    </div>`;
+  }
   function renderLinkPerf(){
-    const c=cfg(); const clicks=SmileStore.clickStats(); const links=c.links||[];
+    const c=cfg(); const clicks=SmileStore.clickStats(perfRange); const links=c.links||[];
     const rows=[{id:'primary', label:'✨ '+((c.site&&c.site.ctaText)||'Free smile preview'), primary:true}]
       .concat(links.map(l=>({id:l.id, label:(l.icon?l.icon+' ':'')+l.label})));
     const total=Object.values(clicks).reduce((s,n)=>s+(+n||0),0);
     const max=Math.max(1,...rows.map(r=>clicks[r.id]||0));
     const primaryClicks=clicks['primary']||0;
     const pct=n=>total?Math.round(n/total*100):0;
-    return `<div class="metrics kpirow">
+    return rangeBarHtml(' · <b>'+total+'</b> taps') + `<div class="metrics kpirow">
         <div class="metric kpi"><div class="kpi-ic">👆</div><div class="big">${total}</div><div class="lbl">Total bio taps</div></div>
         <div class="metric kpi"><div class="kpi-ic">✨</div><div class="big">${primaryClicks}</div><div class="lbl">Free-preview CTA taps</div><div class="msub">${pct(primaryClicks)}% of taps</div></div>
         <div class="metric kpi"><div class="kpi-ic">🔗</div><div class="big">${links.length}</div><div class="lbl">Links live</div></div>
       </div>
       <div class="panel"><h3><span class="ph-ic">🔗</span>Taps by link</h3>
         <p class="muted small">Every tap on your Linktree-style bio page. The free-preview CTA is the one that feeds the consult queue.</p>
-        <div class="funnelchart">`+
+        <div class="taps">`+
         rows.map(r=>{ const n=clicks[r.id]||0, w=Math.round(n/max*100);
-          return `<div class="frow"><div class="flabel">${esc(r.label)}${r.primary?'<span class="prim">primary</span>':''}</div>
-            <div class="ftrack"><div class="ffill ${r.primary?'':'alt'}" style="width:${Math.max(w,3)}%"><span>${n}</span></div></div>
-            <div class="fpct">${pct(n)}%</div><div class="fdrop"></div></div>`;
+          return `<div class="taprow">
+            <div class="tap-label"><span class="tap-name">${esc(r.label)}</span>${r.primary?'<span class="prim">Primary</span>':''}</div>
+            <div class="tap-bar"><div class="tap-fill ${r.primary?'':'alt'}" style="width:${Math.max(w,2)}%"></div></div>
+            <div class="tap-n">${n}</div>
+            <div class="tap-pct">${pct(n)}%</div>
+          </div>`;
         }).join('')+`</div>
         <div class="sharerow" style="margin-top:16px">
           <a class="cta-d" href="../link/" target="_blank">👁 Open bio page</a>
           <input class="shareurl" readonly value="${esc(pubUrl('../link/'))}" onclick="this.select()">
           <button class="cta-d ghost-d" onclick="DoctorApp.share('../link/','My SmileVirtual bio link')">🔗 Share</button>
         </div>
-        <div class="hint" style="margin-top:8px">Manage the links themselves in <b>Settings → Link-in-bio</b>. (Demo counts are stored locally; production timestamps taps for trends over time.)</div>
+        <div class="hint" style="margin-top:8px">Counts respect the date range above. Manage the links themselves in <b>Settings → Link-in-bio</b>.</div>
       </div>`;
   }
   function setPerfRange(key){
