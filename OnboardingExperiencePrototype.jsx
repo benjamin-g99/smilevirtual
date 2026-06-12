@@ -1,0 +1,830 @@
+import { useState } from "react";
+
+const C = {
+  ink: "#1C1916",
+  paper: "#FBF9F5",
+  card: "#FFFFFF",
+  gold: "#A9853B",
+  goldSoft: "#F4ECDA",
+  bronze: "#73695A",
+  green: "#2F7A5E",
+  greenSoft: "#E7F2EC",
+  amber: "#9A6A12",
+  amberSoft: "#F8EFD9",
+  line: "#E5DECF",
+};
+
+const serif = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
+const sans = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+const SOURCES = {
+  calls: { label: "Prior calls with Growth99", bg: "#E9E6F7", fg: "#4A3D8F" },
+  website: { label: "Your website", bg: "#E4F0EA", fg: "#23644B" },
+  google: { label: "Your Google listing", bg: "#E6EEF8", fg: "#2A5588" },
+};
+
+function Chip({ source }) {
+  const s = SOURCES[source];
+  return (
+    <span style={{ fontFamily: sans, fontSize: 11, fontWeight: 600, letterSpacing: 0.3, padding: "3px 9px", borderRadius: 99, background: s.bg, color: s.fg, whiteSpace: "nowrap" }}>
+      {s.label}
+    </span>
+  );
+}
+
+function Field({ label, value, source, onChange, multiline }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <div style={{ padding: "13px 0", borderBottom: `1px solid ${C.line}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5, gap: 8 }}>
+        <span style={{ fontFamily: sans, fontSize: 11, fontWeight: 600, color: C.bronze, textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</span>
+        <Chip source={source} />
+      </div>
+      {editing ? (
+        multiline ? (
+          <textarea autoFocus value={value} onChange={(e) => onChange(e.target.value)} onBlur={() => setEditing(false)} rows={3}
+            style={{ width: "100%", fontFamily: sans, fontSize: 15, color: C.ink, border: `1.5px solid ${C.gold}`, borderRadius: 8, padding: "8px 10px", background: "#fff", boxSizing: "border-box", resize: "vertical" }} />
+        ) : (
+          <input autoFocus value={value} onChange={(e) => onChange(e.target.value)} onBlur={() => setEditing(false)} onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
+            style={{ width: "100%", fontFamily: sans, fontSize: 15, color: C.ink, border: `1.5px solid ${C.gold}`, borderRadius: 8, padding: "8px 10px", background: "#fff", boxSizing: "border-box" }} />
+        )
+      ) : (
+        <div onClick={() => setEditing(true)} title="Click to edit"
+          style={{ fontFamily: sans, fontSize: 15, color: C.ink, lineHeight: 1.45, cursor: "text", whiteSpace: "pre-wrap" }}>
+          {value}
+          <span style={{ marginLeft: 8, fontSize: 12, color: C.gold, fontWeight: 600 }}>edit</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Btn({ children, onClick, secondary, green }) {
+  return (
+    <button onClick={onClick}
+      style={{
+        fontFamily: sans, fontWeight: 600, fontSize: 15, letterSpacing: 0.2,
+        padding: "13px 28px", borderRadius: 10, cursor: "pointer",
+        border: secondary ? `1.5px solid ${C.line}` : "none",
+        background: secondary ? "transparent" : green ? C.green : C.ink,
+        color: secondary ? C.bronze : "#fff",
+      }}>
+      {children}
+    </button>
+  );
+}
+
+function TextArea({ value, onChange, rows = 3, placeholder }) {
+  return (
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+      style={{ width: "100%", fontFamily: sans, fontSize: 15, color: C.ink, border: `1.5px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", background: "#fff", boxSizing: "border-box", lineHeight: 1.55, resize: "vertical" }} />
+  );
+}
+
+function TextInput({ value, onChange, placeholder }) {
+  return (
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      style={{ width: "100%", fontFamily: sans, fontSize: 14, color: C.ink, border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "9px 11px", background: "#fff", boxSizing: "border-box" }} />
+  );
+}
+
+function Pill({ label, active, onClick, dark }) {
+  return (
+    <button onClick={onClick}
+      style={{
+        fontFamily: sans, fontSize: 14, fontWeight: 500, padding: "8px 16px", borderRadius: 99, cursor: "pointer",
+        border: `1.5px solid ${active ? (dark ? C.ink : C.gold) : C.line}`,
+        background: active ? (dark ? C.ink : C.goldSoft) : "transparent",
+        color: active ? (dark ? "#fff" : C.ink) : C.bronze,
+      }}>
+      {label}
+    </button>
+  );
+}
+
+function voiceSentence(s) {
+  const opener = s.tone < 50
+    ? "Physician-led treatments, planned with clinical precision"
+    : "Treatments that feel less like a procedure and more like self-care";
+  const middle = s.lux < 50
+    ? "in a private, polished setting"
+    : "from a team that knows you by name";
+  const closer = s.bold < 50
+    ? "Look incredible. Book your consultation today."
+    : "Subtle, natural results — whenever you're ready.";
+  const tail = s.play < 50 ? " (Your secret's safe with us.)" : "";
+  return `${opener}, ${middle}. ${closer}${tail}`;
+}
+
+function Approval({ state, onApprove, onChanges, approvedNote }) {
+  const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState("");
+  if (state === "approved")
+    return (
+      <div style={{ background: C.greenSoft, borderRadius: 12, padding: "14px 18px", display: "flex", gap: 10, alignItems: "center" }}>
+        <span style={{ color: C.green, fontSize: 18, fontWeight: 700 }}>✓</span>
+        <span style={{ fontFamily: sans, fontSize: 14, color: C.green, fontWeight: 600 }}>{approvedNote}</span>
+      </div>
+    );
+  if (state === "changes")
+    return (
+      <div style={{ background: C.amberSoft, borderRadius: 12, padding: "14px 18px" }}>
+        <span style={{ fontFamily: sans, fontSize: 14, color: C.amber, fontWeight: 600 }}>
+          Changes requested — your project manager will follow up today, and a revised version will be back within one business day.
+        </span>
+      </div>
+    );
+  if (asking)
+    return (
+      <div>
+        <TextArea value={note} onChange={setNote} rows={2} placeholder="What should change? Be as blunt as you like." />
+        <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+          <Btn onClick={onChanges}>Send to the team</Btn>
+          <Btn secondary onClick={() => setAsking(false)}>Never mind</Btn>
+        </div>
+      </div>
+    );
+  return (
+    <div style={{ display: "flex", gap: 12 }}>
+      <Btn green onClick={onApprove}>Approve</Btn>
+      <Btn secondary onClick={() => setAsking(true)}>Request changes</Btn>
+    </div>
+  );
+}
+
+function DayBadge({ day, label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 700, color: "#fff", background: C.gold, padding: "5px 12px", borderRadius: 99, letterSpacing: 0.8, textTransform: "uppercase" }}>{day}</span>
+      <span style={{ fontFamily: sans, fontSize: 13, color: C.bronze }}>{label}</span>
+    </div>
+  );
+}
+
+export default function OnboardingPrototype() {
+  const [idx, setIdx] = useState(-1); // -1 welcome, 0..N-1 wizard, then journey
+  const [journey, setJourney] = useState(0); // 0 = not in journey; 1..5 journey screens
+  const [saved, setSaved] = useState(false);
+
+  // Confirm
+  const [biz, setBiz] = useState({
+    name: "Spa Lumiere",
+    contact: "Pricilla Veiga",
+    phone: "(727) 372-4800",
+    email: "pricilla@spalumierema.com",
+    address: "18713 N Dale Mabry Hwy, Suite A, Lutz, FL 33548",
+    hours: "Mon / Wed / Fri 10–6 · Tue / Thu 12–6 · Sat by appt",
+    desc: "Medical spa offering facial rejuvenation, Botox, dermal fillers, and non-invasive body contouring with a focus on natural-looking results.",
+  });
+  const [services, setServices] = useState([
+    { name: "Botox & Dysport", on: true },
+    { name: "Dermal fillers", on: true },
+    { name: "Body contouring", on: true },
+    { name: "Chemical peels", on: true },
+    { name: "Facials & rejuvenation", on: true },
+    { name: "Skin tightening", on: true },
+  ]);
+
+  // Strategy
+  const [why, setWhy] = useState(
+    "Patients drive past three other medspas because of my injector's reputation — they want natural results, not the frozen look. Most new clients come from referrals and Instagram."
+  );
+  const [revToday, setRevToday] = useState(["Botox & Dysport", "Dermal fillers"]);
+  const [revGrow, setRevGrow] = useState(["Body contouring"]);
+  const [patient, setPatient] = useState("");
+  const [cameBecause, setCameBecause] = useState("");
+  const [reallyWanted, setReallyWanted] = useState("");
+  const [trust, setTrust] = useState({ photos: "Have, with consent", team: "Need a shoot", financing: "Cherry" });
+  const [favReview, setFavReview] = useState("");
+  const [loves, setLoves] = useState([{ url: "", note: "" }, { url: "", note: "" }]);
+  const [hate, setHate] = useState({ url: "", note: "" });
+  const [sliders, setSliders] = useState({ tone: 62, lux: 40, bold: 58, play: 70 });
+  const [noSite, setNoSite] = useState(false);
+  const [betterSite, setBetterSite] = useState(
+    "The current site looks dated and doesn't show up on Google. Patients say they can't find pricing or how to book."
+  );
+  const [firstSite, setFirstSite] = useState("");
+  const [action, setAction] = useState("Book online");
+  const [actionOther, setActionOther] = useState("");
+  const [success, setSuccess] = useState("Body contouring fully booked, and half of new patients booking online without calling.");
+
+  // Decisions
+  const [contentOpt, setContentOpt] = useState(1);
+  const [bios, setBios] = useState("");
+  const [team, setTeam] = useState([]);
+
+  // Journey approvals
+  const [brandState, setBrandState] = useState(null);
+  const [webState, setWebState] = useState(null);
+
+  const toggle = (list, setList, name, max) => {
+    if (list.includes(name)) setList(list.filter((x) => x !== name));
+    else if (list.length < max) setList([...list, name]);
+  };
+
+  const activeServices = services.filter((s) => s.on).map((s) => s.name);
+
+  const Slider = ({ left, right, k }) => (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: sans, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+        <span style={{ color: sliders[k] < 50 ? C.ink : C.bronze }}>{left}</span>
+        <span style={{ color: sliders[k] >= 50 ? C.ink : C.bronze }}>{right}</span>
+      </div>
+      <input type="range" min={0} max={100} value={sliders[k]}
+        onChange={(e) => setSliders({ ...sliders, [k]: +e.target.value })}
+        style={{ width: "100%", accentColor: C.gold }} />
+    </div>
+  );
+
+  /* ---------- Wizard screens: one question each ---------- */
+
+  const screens = [
+    {
+      phase: "Confirm", title: "Here's what we have on file. Anything wrong?",
+      hint: "Click any answer to fix it. Each one shows where we got it.",
+      body: (
+        <div>
+          <Field label="Business name" value={biz.name} source="calls" onChange={(v) => setBiz({ ...biz, name: v })} />
+          <Field label="Primary contact" value={biz.contact} source="calls" onChange={(v) => setBiz({ ...biz, contact: v })} />
+          <Field label="Phone for website" value={biz.phone} source="google" onChange={(v) => setBiz({ ...biz, phone: v })} />
+          <Field label="Location" value={biz.address} source="google" onChange={(v) => setBiz({ ...biz, address: v })} />
+          <Field label="Hours" value={biz.hours} source="google" onChange={(v) => setBiz({ ...biz, hours: v })} />
+        </div>
+      ),
+      next: "All correct",
+    },
+    {
+      phase: "Confirm", title: "Did we describe you right?",
+      hint: "Pulled from your website. Edit it, and tap any service that doesn't belong.",
+      body: (
+        <div>
+          <Field label="How we'd describe you" value={biz.desc} source="website" onChange={(v) => setBiz({ ...biz, desc: v })} multiline />
+          <div style={{ paddingTop: 16 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {services.map((s, i) => (
+                <button key={s.name}
+                  onClick={() => setServices(services.map((x, j) => (j === i ? { ...x, on: !x.on } : x)))}
+                  style={{
+                    fontFamily: sans, fontSize: 14, fontWeight: 500, padding: "8px 16px", borderRadius: 99, cursor: "pointer",
+                    border: `1.5px solid ${s.on ? C.gold : C.line}`,
+                    background: s.on ? C.goldSoft : "transparent",
+                    color: s.on ? C.ink : C.bronze,
+                    textDecoration: s.on ? "none" : "line-through",
+                  }}>
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ),
+      next: "Looks right",
+    },
+    {
+      phase: "Strategy", title: "Why do patients choose you?",
+      hint: "We drafted this from your own words — refine it until it sounds true.",
+      body: (
+        <div>
+          <div style={{ background: C.goldSoft, borderLeft: `3px solid ${C.gold}`, borderRadius: "0 10px 10px 0", padding: "12px 16px", marginBottom: 14 }}>
+            <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: "#4A3D8F", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 5 }}>
+              From your conversations with Growth99 · May 14
+            </div>
+            <div style={{ fontFamily: serif, fontSize: 16, fontStyle: "italic", color: C.ink, lineHeight: 1.45 }}>
+              "People come to us because they don't want to look done. My injector has patients who drive 45 minutes past other medspas."
+            </div>
+          </div>
+          <TextArea value={why} onChange={setWhy} rows={3} />
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "Which services drive your revenue today?",
+      hint: "Pick up to three.",
+      body: (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {activeServices.map((s) => (
+            <Pill key={s} label={s} dark active={revToday.includes(s)} onClick={() => toggle(revToday, setRevToday, s, 3)} />
+          ))}
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "Which services do you most want to grow?",
+      hint: "Pick up to two. We'll build the site to push these.",
+      body: (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {activeServices.map((s) => (
+            <Pill key={s} label={s} active={revGrow.includes(s)} onClick={() => toggle(revGrow, setRevGrow, s, 2)} />
+          ))}
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "Who is your ideal patient, really?",
+      hint: "A person, not a demographic. What brings them in? What are they nervous about?",
+      body: (
+        <TextArea value={patient} onChange={setPatient} rows={4}
+          placeholder={'e.g., "A woman in her 40s who\'s been thinking about Botox for two years but is terrified of looking frozen. She asks about natural results in every consult."'} />
+      ),
+    },
+    {
+      phase: "Strategy", title: "What are they really buying?",
+      hint: "Complete the sentence from your patient's point of view.",
+      body: (
+        <div style={{ fontFamily: sans, fontSize: 15, color: C.ink, lineHeight: 2.4 }}>
+          "I came in because{" "}
+          <input value={cameBecause} onChange={(e) => setCameBecause(e.target.value)} placeholder="…the lines on my forehead bothered me"
+            style={{ fontFamily: sans, fontSize: 14, fontStyle: "italic", color: C.ink, border: "none", borderBottom: `2px solid ${C.gold}`, background: "transparent", padding: "2px 4px", width: "min(280px, 60%)", outline: "none" }} />
+          {" "}and what I really wanted was{" "}
+          <input value={reallyWanted} onChange={(e) => setReallyWanted(e.target.value)} placeholder="…to look like myself, just rested"
+            style={{ fontFamily: sans, fontSize: 14, fontStyle: "italic", color: C.ink, border: "none", borderBottom: `2px solid ${C.gold}`, background: "transparent", padding: "2px 4px", width: "min(280px, 60%)", outline: "none" }} />
+          ."
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "What do we have to build trust with?",
+      hint: "These make visitors believe you before they ever call.",
+      body: (
+        <div>
+          {[
+            ["Before & after photos", "photos", ["Have, with consent", "Have, no consent yet", "Don't have"]],
+            ["Photos of your team & space", "team", ["Have them", "Need a shoot", "Use stock for now"]],
+            ["Financing you offer", "financing", ["Cherry", "CareCredit", "Other", "None"]],
+          ].map(([label, k, opts], i) => (
+            <div key={k} style={{ padding: "10px 0", borderBottom: i < 2 ? `1px solid ${C.line}` : "none" }}>
+              <div style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 8 }}>{label}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {opts.map((o) => (
+                  <Pill key={o} label={o} active={trust[k] === o} onClick={() => setTrust({ ...trust, [k]: o })} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "You have 47 Google reviews, 4.9 average.",
+      hint: "Any favorites we should feature front and center? Optional.",
+      chip: "google",
+      body: <TextInput value={favReview} onChange={setFavReview} placeholder="Paste a review or describe one you love" />,
+    },
+    {
+      phase: "Strategy", title: "Show us your taste.",
+      hint: "Two sites you love — any industry — and one you can't stand. This guides our designers better than any color question.",
+      body: (
+        <div>
+          {loves.map((l, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 180px" }}><TextInput value={l.url} onChange={(v) => setLoves(loves.map((x, j) => (j === i ? { ...x, url: v } : x)))} placeholder={`Site you love #${i + 1}`} /></div>
+              <div style={{ flex: "1 1 180px" }}><TextInput value={l.note} onChange={(v) => setLoves(loves.map((x, j) => (j === i ? { ...x, note: v } : x)))} placeholder="What you like about it" /></div>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 180px" }}><TextInput value={hate.url} onChange={(v) => setHate({ ...hate, url: v })} placeholder="A site you can't stand" /></div>
+            <div style={{ flex: "1 1 180px" }}><TextInput value={hate.note} onChange={(v) => setHate({ ...hate, note: v })} placeholder="Why it bothers you" /></div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "How should your brand sound?",
+      hint: "Drag the sliders — the example rewrites itself. Stop when it sounds like you.",
+      body: (
+        <div>
+          <Slider left="Clinical" right="Warm" k="tone" />
+          <Slider left="Luxurious" right="Approachable" k="lux" />
+          <Slider left="Bold" right="Understated" k="bold" />
+          <Slider left="Playful" right="Serious" k="play" />
+          <div style={{ background: C.goldSoft, border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px", marginTop: 4 }}>
+            <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+              Your homepage might sound like
+            </div>
+            <div style={{ fontFamily: serif, fontSize: 17, fontStyle: "italic", color: C.ink, lineHeight: 1.5 }}>
+              {voiceSentence(sliders)}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "What could be better about your current site?",
+      hint: "Drafted from our conversations — add anything patients mention.",
+      body: (
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: sans, fontSize: 14, color: C.bronze, marginBottom: 12, cursor: "pointer" }}>
+            <input type="checkbox" checked={noSite} onChange={(e) => setNoSite(e.target.checked)} style={{ accentColor: C.gold, width: 16, height: 16 }} />
+            We don't have a website yet
+          </label>
+          {noSite ? (
+            <div>
+              <div style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+                A blank canvas, then. What should your first website do for your practice?
+              </div>
+              <TextArea value={firstSite} onChange={setFirstSite} rows={2}
+                placeholder="e.g., make us look established, let patients book without calling" />
+            </div>
+          ) : (
+            <TextArea value={betterSite} onChange={setBetterSite} rows={2} />
+          )}
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "The one thing visitors should do.",
+      hint: "Every page will point to this. You mentioned you use Boulevard for booking.",
+      body: (
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: action === "Other" ? 12 : 0 }}>
+            {["Book online", "Call the practice", "Request a consult", "Other"].map((a) => (
+              <button key={a} onClick={() => setAction(a)}
+                style={{ fontFamily: sans, fontSize: 14, fontWeight: 500, padding: "10px 18px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${action === a ? C.gold : C.line}`, background: action === a ? C.goldSoft : "transparent", color: C.ink }}>
+                {a}
+              </button>
+            ))}
+          </div>
+          {action === "Other" && (
+            <TextInput value={actionOther} onChange={setActionOther} placeholder="Tell us — e.g., join our membership, claim a new-patient offer" />
+          )}
+        </div>
+      ),
+    },
+    {
+      phase: "Strategy", title: "One year from now, this was a home run.",
+      hint: "What changed for your practice? Be as ambitious as you like.",
+      body: <TextArea value={success} onChange={setSuccess} rows={2} />,
+    },
+    {
+      phase: "Decisions", title: "Your logo.",
+      hint: "Vector (.ai / .svg / .eps) preferred. A brand kit is welcome too.",
+      body: (
+        <div style={{ border: `1.5px dashed ${C.gold}`, borderRadius: 12, padding: "30px 20px", textAlign: "center", fontFamily: sans, fontSize: 14, color: C.bronze, background: C.goldSoft }}>
+          Drop your logo here
+        </div>
+      ),
+    },
+    {
+      phase: "Decisions", title: "What should we do with your existing content?",
+      body: (
+        <div>
+          {[
+            ["Keep it", "We move your current content over as-is — fastest path."],
+            ["Enhance it", "We keep the bones, add FAQs, benefits, and stronger calls to action."],
+            ["Rewrite it", "Fresh copy from your strategy answers — adds about a week."],
+          ].map(([t, d], i) => (
+            <div key={t} onClick={() => setContentOpt(i)}
+              style={{ display: "flex", gap: 12, padding: "12px 14px", marginBottom: 8, alignItems: "flex-start", cursor: "pointer", border: `1.5px solid ${contentOpt === i ? C.gold : C.line}`, borderRadius: 12, background: contentOpt === i ? C.goldSoft : "transparent" }}>
+              <div style={{ width: 18, height: 18, borderRadius: 99, border: `2px solid ${contentOpt === i ? C.gold : C.line}`, background: contentOpt === i ? C.gold : "transparent", marginTop: 2, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.ink }}>{t}</div>
+                <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze, lineHeight: 1.5 }}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      phase: "Decisions", title: "Anything to change about team bios?",
+      hint: "Add, remove, or update anyone on the new site. Optional.",
+      body: <TextInput value={bios} onChange={setBios} placeholder="e.g., add our new nurse injector, update Pricilla's bio" />,
+    },
+    {
+      phase: "Decisions", title: "Last one: who gets access to your Growth99 platform?",
+      hint: "When you submit, we create your team's accounts on the Growth99 platform — your hub for every lead, conversation, campaign, and report. Invites go out today.",
+      body: (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.ink }}>{biz.contact}</div>
+              <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze }}>{biz.email}</div>
+            </div>
+            <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: C.gold, background: C.goldSoft, padding: "4px 10px", borderRadius: 99 }}>Admin</span>
+          </div>
+          {team.map((m, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ flex: "1 1 130px" }}>
+                <TextInput value={m.name} onChange={(v) => setTeam(team.map((x, j) => (j === i ? { ...x, name: v } : x)))} placeholder="Name" />
+              </div>
+              <div style={{ flex: "1 1 170px" }}>
+                <TextInput value={m.email} onChange={(v) => setTeam(team.map((x, j) => (j === i ? { ...x, email: v } : x)))} placeholder="Email" />
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {["Admin", "Staff"].map((r) => (
+                  <Pill key={r} label={r} active={m.role === r}
+                    onClick={() => setTeam(team.map((x, j) => (j === i ? { ...x, role: r } : x)))} />
+                ))}
+              </div>
+              <button onClick={() => setTeam(team.filter((_, j) => j !== i))}
+                style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: C.bronze, background: "transparent", border: "none", cursor: "pointer", padding: "6px 4px" }}>
+                Remove
+              </button>
+            </div>
+          ))}
+          <button onClick={() => setTeam([...team, { name: "", email: "", role: "Staff" }])}
+            style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.gold, background: "transparent", border: `1.5px dashed ${C.gold}`, borderRadius: 10, padding: "10px 18px", cursor: "pointer", marginBottom: 10 }}>
+            + Add a teammate
+          </button>
+          <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze, lineHeight: 1.5 }}>
+            Admins manage settings, users, and integrations. Staff work leads, messages, and campaigns. You can change roles anytime.
+          </div>
+        </div>
+      ),
+      next: "Submit — I'm done",
+    },
+  ];
+
+  const total = screens.length;
+
+  /* ---------- Chrome ---------- */
+
+  const Welcome = (
+    <div>
+      <div style={{ fontFamily: sans, fontSize: 12, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1.6, marginBottom: 14 }}>
+        Growth99 · Welcome aboard
+      </div>
+      <h1 style={{ fontFamily: serif, fontSize: 42, fontWeight: 500, color: C.ink, margin: 0, lineHeight: 1.1 }}>
+        Pricilla, we already did<br />most of your homework.
+      </h1>
+      <p style={{ fontFamily: sans, fontSize: 16, color: C.bronze, lineHeight: 1.65, margin: "20px 0 28px", maxWidth: 520 }}>
+        Before sending you this, we reviewed our prior conversations with you, your current website, and your Google Business listing. Most answers are already filled in. One quick question at a time — and you can save and come back whenever.
+      </p>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 32 }}>
+        {[
+          ["27", "answers pre-filled for you"],
+          ["18", "quick screens"],
+          ["~12", "minutes, total"],
+        ].map(([n, l]) => (
+          <div key={l} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "18px 22px", minWidth: 140 }}>
+            <div style={{ fontFamily: serif, fontSize: 34, color: C.gold, lineHeight: 1 }}>{n}</div>
+            <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze, marginTop: 6 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+      <Btn onClick={() => setIdx(0)}>Let's go</Btn>
+    </div>
+  );
+
+  const SavedBanner = saved && (
+    <div style={{ background: C.greenSoft, borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: sans, fontSize: 14, color: C.green, fontWeight: 600 }}>
+        Progress saved. We've emailed you a private link — pick up right here anytime, on any device.
+      </span>
+      <button onClick={() => setSaved(false)}
+        style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: C.green, background: "transparent", border: `1.5px solid ${C.green}`, borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+        Keep going
+      </button>
+    </div>
+  );
+
+  const Wizard = idx >= 0 && idx < total && (() => {
+    const s = screens[idx];
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1.2 }}>
+            {s.phase} · {idx + 1} of {total}
+          </span>
+          <button onClick={() => setSaved(true)}
+            style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: C.bronze, background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
+            Save & finish later
+          </button>
+        </div>
+        <div style={{ height: 4, borderRadius: 99, background: C.line, marginBottom: 28 }}>
+          <div style={{ height: 4, borderRadius: 99, background: C.gold, width: `${Math.round(((idx + 1) / total) * 100)}%`, transition: "width .3s" }} />
+        </div>
+        {SavedBanner}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+          <h1 style={{ fontFamily: serif, fontSize: 30, fontWeight: 500, color: C.ink, margin: 0, lineHeight: 1.2 }}>{s.title}</h1>
+          {s.chip && <Chip source={s.chip} />}
+        </div>
+        {s.hint && <p style={{ fontFamily: sans, fontSize: 14, color: C.bronze, lineHeight: 1.55, margin: "10px 0 0" }}>{s.hint}</p>}
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "18px 22px", margin: "20px 0 24px" }}>
+          {s.body}
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn onClick={() => (idx === total - 1 ? setJourney(1) : setIdx(idx + 1))}>{s.next || "Continue"}</Btn>
+          <Btn secondary onClick={() => (idx === 0 ? setIdx(-1) : setIdx(idx - 1))}>Back</Btn>
+        </div>
+      </div>
+    );
+  })();
+
+  /* ---------- Journey screens ---------- */
+
+  const BriefRow = ({ label, children }) => (
+    <div style={{ padding: "12px 0", borderBottom: `1px solid ${C.line}` }}>
+      <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontFamily: sans, fontSize: 14, color: C.ink, lineHeight: 1.55 }}>{children}</div>
+    </div>
+  );
+
+  const JHeader = ({ kicker, title, sub }) => (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontFamily: sans, fontSize: 12, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1.6, marginBottom: 10 }}>{kicker}</div>
+      <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 500, color: C.ink, margin: 0, lineHeight: 1.15 }}>{title}</h1>
+      {sub && <p style={{ fontFamily: sans, fontSize: 15, color: C.bronze, lineHeight: 1.6, marginTop: 12, marginBottom: 0 }}>{sub}</p>}
+    </div>
+  );
+
+  const access = [
+    ["Domain access", "Verified", C.green, C.greenSoft],
+    ["Google Analytics", "Verified", C.green, C.greenSoft],
+    ["Google Business Profile", "Granted — verifying", C.amber, C.amberSoft],
+    ["Boulevard (booking data)", "Waiting on you · reminder sent", C.amber, C.amberSoft],
+  ];
+
+  const journeyScreens = {
+    1: (
+      <div>
+        <div style={{ width: 52, height: 52, borderRadius: 99, background: C.greenSoft, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+          <span style={{ color: C.green, fontSize: 24, fontWeight: 700 }}>✓</span>
+        </div>
+        <h1 style={{ fontFamily: serif, fontSize: 36, fontWeight: 500, color: C.ink, margin: 0, lineHeight: 1.15 }}>
+          That's it. Now we get to work.
+        </h1>
+        <p style={{ fontFamily: sans, fontSize: 15, color: C.bronze, lineHeight: 1.65, margin: "16px 0 26px", maxWidth: 520 }}>
+          Your onboarding brief is being assembled from everything above. Here's the week ahead — preview every step right now.
+        </p>
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "8px 24px", maxWidth: 540, marginBottom: 26 }}>
+          {[
+            ["Today", "Growth99 platform invites for your team"],
+            ["Today", "Onboarding brief in your inbox"],
+            ["Tomorrow", "Brand guidelines — approve in one click"],
+            ["Day 3", "Website brief — approve in one click"],
+            ["This week", "First homepage designs"],
+          ].map(([when, title], i) => (
+            <div key={title} style={{ display: "flex", gap: 16, padding: "13px 0", borderBottom: i < 4 ? `1px solid ${C.line}` : "none", alignItems: "center" }}>
+              <div style={{ fontFamily: sans, fontSize: 12, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 0.6, width: 78, flexShrink: 0 }}>{when}</div>
+              <div style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.ink }}>{title}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn onClick={() => setJourney(2)}>Preview the journey</Btn>
+          <Btn secondary onClick={() => { setJourney(0); setIdx(-1); }}>Restart prototype</Btn>
+        </div>
+      </div>
+    ),
+    2: (
+      <div>
+        <DayBadge day="Today" label="Within an hour of submitting · email + your shared folder" />
+        <JHeader kicker="Deliverable 1 of 4" title="Your onboarding brief."
+          sub="Everything we gathered and everything you told us, in one document. Notice it's built from your actual answers." />
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "20px 26px", marginBottom: 24 }}>
+          <div style={{ borderBottom: `2px solid ${C.gold}`, paddingBottom: 14, marginBottom: 4 }}>
+            <div style={{ fontFamily: serif, fontSize: 24, color: C.ink }}>Spa Lumiere — Onboarding Brief</div>
+            <div style={{ fontFamily: sans, fontSize: 12, color: C.bronze, marginTop: 4 }}>Prepared by Growth99 · June 2026 · PDF attached</div>
+          </div>
+          <BriefRow label="Positioning">{why}</BriefRow>
+          <BriefRow label="Homepage priorities">
+            Featured: {revToday.join(", ") || "—"}. Growth focus: {revGrow.join(", ") || "—"}.
+          </BriefRow>
+          <BriefRow label="Brand voice">
+            <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: 15 }}>"{voiceSentence(sliders)}"</span>
+          </BriefRow>
+          <BriefRow label="Primary visitor action">{action === "Other" ? actionOther || "Other" : action}{action === "Book online" ? " via Boulevard" : ""}</BriefRow>
+          <BriefRow label="Trust assets">
+            Before/afters: {trust.photos.toLowerCase()} · Team photos: {trust.team.toLowerCase()} · Financing: {trust.financing} · 47 Google reviews (4.9)
+          </BriefRow>
+          <div style={{ padding: "12px 0" }}>
+            <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 5 }}>Success, 12 months out</div>
+            <div style={{ fontFamily: sans, fontSize: 14, color: C.ink, lineHeight: 1.55 }}>{success || "—"}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn onClick={() => setJourney(3)}>Tomorrow's email</Btn>
+          <Btn secondary onClick={() => setJourney(1)}>Back</Btn>
+        </div>
+      </div>
+    ),
+    3: (
+      <div>
+        <DayBadge day="Tomorrow" label="Brand guidelines · ready for your approval" />
+        <JHeader kicker="Deliverable 2 of 4" title="Your brand guidelines."
+          sub="Built from your logo, your site's palette, and the voice you chose. One click to approve." />
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "20px 26px", marginBottom: 18 }}>
+          <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Palette</div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
+            {[["#A9853B", "Lumiere gold"], ["#1C1916", "Ink"], ["#E8D9C5", "Nude"], ["#F4ECDA", "Champagne"], ["#FBF9F5", "Porcelain"]].map(([hex, name]) => (
+              <div key={hex} style={{ textAlign: "center" }}>
+                <div style={{ width: 60, height: 60, borderRadius: 12, background: hex, border: `1px solid ${C.line}` }} />
+                <div style={{ fontFamily: sans, fontSize: 11, color: C.bronze, marginTop: 6 }}>{name}<br />{hex}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Typography</div>
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontFamily: serif, fontSize: 26, color: C.ink, lineHeight: 1.2 }}>Cormorant Garamond for headlines</div>
+            <div style={{ fontFamily: sans, fontSize: 15, color: C.bronze, marginTop: 6 }}>A clean sans-serif for body text, keeping treatment pages effortless to read.</div>
+          </div>
+          <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Voice · from your sliders</div>
+          <div style={{ fontFamily: serif, fontSize: 16, fontStyle: "italic", color: C.ink, lineHeight: 1.5, background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px" }}>
+            "{voiceSentence(sliders)}"
+          </div>
+        </div>
+        <div style={{ marginBottom: 24 }}>
+          <Approval state={brandState}
+            onApprove={() => setBrandState("approved")}
+            onChanges={() => setBrandState("changes")}
+            approvedNote="Approved. The team has been notified — your website brief arrives tomorrow." />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn onClick={() => setJourney(4)}>Day 3's email</Btn>
+          <Btn secondary onClick={() => setJourney(2)}>Back</Btn>
+        </div>
+      </div>
+    ),
+    4: (
+      <div>
+        <DayBadge day="Day 3" label="Website brief · ready for your approval" />
+        <JHeader kicker="Deliverable 3 of 4" title="The plan for your new site."
+          sub="Structured around your revenue priorities and the one action that matters." />
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "20px 26px", marginBottom: 18 }}>
+          <BriefRow label="Sitemap">
+            Home · {revToday[0] || "Injectables"} (featured) · {revGrow[0] || "Body contouring"} (growth push) · All services · About & team · Results gallery{trust.photos === "Have, with consent" ? " (your consented before/afters)" : ""} · Book
+          </BriefRow>
+          <BriefRow label="Homepage hierarchy">
+            Hero leads with your positioning, then {revToday.join(" and ") || "your core services"}, with a dedicated section driving {revGrow.join(", ") || "growth services"}.
+          </BriefRow>
+          <BriefRow label="Every page points to">
+            {action === "Other" ? actionOther || "your chosen action" : action}{action === "Book online" ? ", wired to Boulevard" : ""}.
+          </BriefRow>
+          <BriefRow label="SEO focus">
+            Local visibility for medspa and {(revGrow[0] || "body contouring").toLowerCase()} searches in Lutz and north Tampa — the gap you flagged.
+          </BriefRow>
+          <div style={{ padding: "12px 0" }}>
+            <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 5 }}>We'll measure success by</div>
+            <div style={{ fontFamily: sans, fontSize: 14, color: C.ink, lineHeight: 1.55 }}>{success || "The goals from your strategy answers."}</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 24 }}>
+          <Approval state={webState}
+            onApprove={() => setWebState("approved")}
+            onChanges={() => setWebState("changes")}
+            approvedNote="Approved. Design starts now — first homepage mockups this week." />
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn onClick={() => setJourney(5)}>This week</Btn>
+          <Btn secondary onClick={() => setJourney(3)}>Back</Btn>
+        </div>
+      </div>
+    ),
+    5: (
+      <div>
+        <DayBadge day="This week" label="Design in progress · build queued behind access" />
+        <JHeader kicker="Deliverable 4 of 4" title="Designs this week. Then we build."
+          sub="Design never waits on logins — but the build does. Your access checklist runs on its own track." />
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "20px 26px", marginBottom: 18 }}>
+          <div style={{ fontFamily: sans, fontSize: 11, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Access checklist · verified by our team, not a form</div>
+          {access.map(([item, status, fg, bg], i) => (
+            <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", borderBottom: i < access.length - 1 ? `1px solid ${C.line}` : "none", gap: 10 }}>
+              <span style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: C.ink }}>{item}</span>
+              <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: fg, background: bg, padding: "4px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>{status}</span>
+            </div>
+          ))}
+          <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze, marginTop: 12, lineHeight: 1.5 }}>
+            No passwords needed — you grant our accounts access using the guides we sent. Two items left before the build can go live.
+          </div>
+        </div>
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "20px 26px", marginBottom: 26 }}>
+          {[
+            ["Homepage mockups", "This week — built on your brand guidelines and brief", true],
+            ["Site build", "Starts on design approval + access complete", false],
+            ["Your new site, presented live", "We walk you through it together", false],
+          ].map(([t, d, now], i) => (
+            <div key={t} style={{ display: "flex", gap: 14, padding: "12px 0", borderBottom: i < 2 ? `1px solid ${C.line}` : "none" }}>
+              <div style={{ width: 10, height: 10, borderRadius: 99, background: now ? C.gold : C.line, marginTop: 5, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, color: C.ink }}>{t}</div>
+                <div style={{ fontFamily: sans, fontSize: 13, color: C.bronze, lineHeight: 1.5 }}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <Btn secondary onClick={() => { setJourney(0); setIdx(-1); }}>Restart prototype</Btn>
+          <Btn secondary onClick={() => setJourney(4)}>Back</Btn>
+        </div>
+      </div>
+    ),
+  };
+
+  const content = journey > 0 ? journeyScreens[journey] : idx === -1 ? Welcome : Wizard;
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.paper, padding: "0 0 80px" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap');`}</style>
+      <div style={{ borderBottom: `1px solid ${C.line}`, background: C.card }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontFamily: serif, fontSize: 20, color: C.ink, letterSpacing: 0.5 }}>Spa Lumiere <span style={{ color: C.gold }}>×</span> Growth99</span>
+          <span style={{ fontFamily: sans, fontSize: 11, fontWeight: 600, color: C.bronze, textTransform: "uppercase", letterSpacing: 1 }}>
+            {journey > 0 ? "The week after · prototype" : "Onboarding · prototype"}
+          </span>
+        </div>
+      </div>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 24px 0" }}>{content}</div>
+    </div>
+  );
+}
