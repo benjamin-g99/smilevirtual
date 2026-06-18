@@ -10,7 +10,7 @@
      rating, reviews, responseHrs, goals offered, financingFrom, beforeAfters,
      bio, accent. NPPES does not hold clinical/marketing data.
 
-   Dr. Brian Harris is our fictional "featured" provider — the one wired to the
+   Dr. Wally Smith is our fictional "featured" provider — the one wired to the
    practice console, so his response-time badge is computed live from Store.
    ============================================================================= */
 (function (global) {
@@ -35,8 +35,8 @@
 
   /* ---- the network ---- */
   const DOCTORS = [
-    { id:'harris', featured:true, name:'Dr. Brian Harris', credential:'DMD',
-      specialty:'Cosmetic & General Dentistry', clinic:'Harris Smile Studio',
+    { id:'harris', featured:true, name:'Dr. Wally Smith', credential:'DMD',
+      specialty:'Cosmetic & General Dentistry', clinic:'Acme Smile Studio',
       city:'Irvine', npi:null, verified:true, rating:4.9, reviews:1284,
       goals:['Whitening','Veneers','Clear aligners','Close gaps','Full makeover'],
       financingFrom:99, beforeAfters:42, accent:'#0E5450',

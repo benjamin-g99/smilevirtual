@@ -17,7 +17,7 @@
              data-headline="See your new smile"     (optional copy override)
              data-cta="✨ Free Smile Preview"        (optional button label)
              data-rating="4.9" data-count="1284"    (badge only)
-             data-name="Harris Smile Studio"        (badge/inline practice name)
+             data-name="Acme Smile Studio"        (badge/inline practice name)
              data-review-url="https://...">         (badge link override)
      </script>
 

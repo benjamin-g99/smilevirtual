@@ -109,15 +109,15 @@ function updateWelcome(){
   const steps=document.getElementById('welcomeSteps');
   if(protoState.sim){
     eb.textContent='Free Smile Preview + Video Consult';
-    sub.textContent='See an instant preview of your new smile — then get a personalized video consultation from Dr. Harris. Right from your phone, no office visit, no cost.';
+    sub.textContent='See an instant preview of your new smile — then get a personalized video consultation from Dr. Smith. Right from your phone, no office visit, no cost.';
     steps.innerHTML = STEPS_SELFIE +
       `<div class="step"><div class="n">3</div><div><b>See your instant preview</b><p>A simulation of your potential new smile, right away.</p></div></div>
-      <div class="step"><div class="n">4</div><div><b>Get your video consultation</b><p>Dr. Harris records a personalized video walking you through it.</p></div></div>`;
+      <div class="step"><div class="n">4</div><div><b>Get your video consultation</b><p>Dr. Smith records a personalized video walking you through it.</p></div></div>`;
   } else {
     eb.textContent='Free Smile Assessment';
-    sub.textContent='Get a personalized video consultation from Dr. Harris — right from your phone. No office visit, no cost.';
+    sub.textContent='Get a personalized video consultation from Dr. Smith — right from your phone. No office visit, no cost.';
     steps.innerHTML = STEPS_SELFIE +
-      `<div class="step"><div class="n">3</div><div><b>Get your video consultation</b><p>Dr. Harris records a personalized video just for you.</p></div></div>`;
+      `<div class="step"><div class="n">3</div><div><b>Get your video consultation</b><p>Dr. Smith records a personalized video just for you.</p></div></div>`;
   }
 }
 updateWelcome();
@@ -380,7 +380,7 @@ function unlockSim(){
   document.getElementById('simHead').innerHTML = name
     ? `Here it is, <em>${name.replace(/[<>&]/g,'')}</em>`
     : `Here's your <em>preview</em>`;
-  document.getElementById('simSub').textContent='Drag the slider to compare. This is a quick automated preview — your real plan comes in Dr. Harris’s video.';
+  document.getElementById('simSub').textContent='Drag the slider to compare. This is a quick automated preview — your real plan comes in Dr. Smith’s video.';
   document.getElementById('confName').textContent = name || 'there';
   // lead captured here when sim is on
   persist({
@@ -397,7 +397,7 @@ function resetSim(){
   document.getElementById('simPayoff').style.display='none';
   document.getElementById('simEyebrow').textContent='✨ Your preview is ready';
   document.getElementById('simHead').innerHTML='Unlock your <em>new smile</em>';
-  document.getElementById('simSub').textContent='Your preview is ready. Enter your details to reveal it — and Dr. Harris will send your full personalized video consultation to follow.';
+  document.getElementById('simSub').textContent='Your preview is ready. Enter your details to reveal it — and Dr. Smith will send your full personalized video consultation to follow.';
   ['sfname','semail','sphone'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('simUnlock').disabled=true;
   if(simDrawn) setSimSlider(50);

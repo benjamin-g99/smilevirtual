@@ -62,7 +62,7 @@
 
   /* returns { lines: [{cue, text}], plain } */
   function generate(lead, cfg) {
-    const doc = (cfg && cfg.doctor && cfg.doctor.name) || 'Dr. Harris';
+    const doc = (cfg && cfg.doctor && cfg.doctor.name) || 'Dr. Smith';
     const name = firstName(lead);
     const lines = [];
 

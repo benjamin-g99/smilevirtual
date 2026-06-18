@@ -7,7 +7,7 @@
 (function (global) {
   'use strict';
 
-  let role = 'Dr. Brian Harris';
+  let role = 'Dr. Wally Smith';
   let activeView = 'queue';
   let activeFilter = 'all';
   let openLeadId = null;

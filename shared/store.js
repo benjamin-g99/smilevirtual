@@ -361,12 +361,12 @@
 
   /* ---- default practice config ------------------------------------------ */
   const DEFAULT_CONFIG = {
-    doctor: { name: 'Dr. Brian Harris', role: 'Cosmetic Dentist · DMD', npi: '', credential: 'DMD',
+    doctor: { name: 'Dr. Wally Smith', role: 'Cosmetic Dentist · DMD', npi: '', credential: 'DMD',
       photo: null, bio: 'Smile-design focused practice. 15+ years, 10,000+ smiles. Known for natural-looking veneers and same-week video consultations.',
       phone: '(949) 555-0100', email: 'hello@harrissmile.com', address: '16100 Sand Canyon Ave', city: 'Irvine', state: 'CA' },
-    brand: { name: 'Harris Smile Studio', logo: null, primary: '#0E3F3C', accent: '#E8C07D' },
+    brand: { name: 'Acme Smile Studio', logo: null, primary: '#0E3F3C', accent: '#E8C07D' },
     staff: [
-      { id: 'u_doc',  name: 'Dr. Brian Harris', role: 'Dentist',    canRecord: true },
+      { id: 'u_doc',  name: 'Dr. Wally Smith', role: 'Dentist',    canRecord: true },
       { id: 'u_maya', name: 'Maya R.',          role: 'Front desk', canRecord: false }
     ],
     questions: [
@@ -381,7 +381,7 @@
       google: 'Google', 'google-ads': 'Google', adwords: 'Google', tiktok: 'TikTok', tt: 'TikTok',
       website: 'Website', site: 'Website', direct: 'Direct', email: 'Email', yelp: 'Yelp' },
     reviews: { googleRating: 4.9, googleCount: 1284, googleUrl: '', yelpRating: 0, yelpCount: 0, yelpUrl: '' },
-    site: { headline: 'See your dream smile — free, from your phone', subhead: 'Get an instant preview and a personal video consultation from Dr. Harris. No office visit to begin.', ctaText: 'Start my free smile preview', showReviews: true },
+    site: { headline: 'See your dream smile — free, from your phone', subhead: 'Get an instant preview and a personal video consultation from Dr. Smith. No office visit to begin.', ctaText: 'Start my free smile preview', showReviews: true },
     links: [
       { id: 'lk_book', label: 'Book an appointment', url: 'https://example.com/book', icon: '📅' },
       { id: 'lk_site', label: 'Our website', url: 'https://example.com', icon: '🌐' },
@@ -454,7 +454,7 @@
         questionAnswers: { 2: '3–6 months' },
         contact: { firstName: 'Dana', email: 'dana.w@email.com', phone: '(310) 555-0173' },
         source: { utm_source: 'google', campaign: 'whitening', content: 'search' },
-        assignedTo: 'Dr. Brian Harris',
+        assignedTo: 'Dr. Wally Smith',
         notes: [], tags: [], booking: null,
         video: { recordedAt: hoursAgo(17), sentAt: hoursAgo(16), durationSec: 96, script: '' } },
 
@@ -465,7 +465,7 @@
         questionAnswers: { 1: 'No, never', 2: 'Within 1–3 months' },
         contact: { firstName: 'Sam', email: 'sam.r@email.com', phone: '(657) 555-0121' },
         source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
-        assignedTo: 'Dr. Brian Harris', notes: [], tags: [], booking: null,
+        assignedTo: 'Dr. Wally Smith', notes: [], tags: [], booking: null,
         account: { passwordSet: true },
         messages: [{ from: 'patient', body: 'Loved the video! Roughly how long does Invisalign take in my case?', at: hoursAgo(28) }],
         video: { recordedAt: hoursAgo(50), sentAt: hoursAgo(48), viewedAt: hoursAgo(30), durationSec: 118, watchCount: 2, watchPct: 0.78, script: '' } },
@@ -477,7 +477,7 @@
         questionAnswers: { 2: 'As soon as possible' },
         contact: { firstName: 'Alex', email: 'alex.j@email.com', phone: '(949) 555-0188' },
         source: { utm_source: 'google', campaign: 'veneers-brand', content: 'search' },
-        assignedTo: 'Dr. Brian Harris', notes: [], tags: ['veneers'],
+        assignedTo: 'Dr. Wally Smith', notes: [], tags: ['veneers'],
         account: { passwordSet: true },
         messages: [{ from: 'patient', body: 'Booked! Can my husband join the consult?', at: hoursAgo(64) }, { from: 'doctor', body: 'Absolutely — bring him along. See you Tuesday!', at: hoursAgo(62) }],
         booking: { bookedAt: hoursAgo(60), apptTime: 'Consult booked for next Tue 2:00pm', attended: true, paid: true, treatmentValue: 11500 },
@@ -490,7 +490,7 @@
         questionAnswers: { 2: 'Within 1–3 months' },
         contact: { firstName: 'Bianca', email: 'bianca.l@email.com', phone: '(949) 555-0155' },
         source: { utm_source: 'meta', campaign: 'smile-spring', content: 'video-a' },
-        assignedTo: 'Dr. Brian Harris', notes: [], tags: ['veneers'], account: { passwordSet: false },
+        assignedTo: 'Dr. Wally Smith', notes: [], tags: ['veneers'], account: { passwordSet: false },
         booking: { bookedAt: hoursAgo(90), apptTime: 'Booked — last Thursday', attended: true, paid: true, treatmentValue: 8200 },
         video: { recordedAt: hoursAgo(150), sentAt: hoursAgo(148), viewedAt: hoursAgo(120), durationSec: 102, watchCount: 3, watchPct: 0.88, script: '' } },
 
@@ -501,7 +501,7 @@
         questionAnswers: { 2: '3–6 months' },
         contact: { firstName: 'Theo', email: 'theo.n@email.com', phone: '(562) 555-0144' },
         source: { utm_source: 'meta', campaign: 'smile-spring', content: 'carousel-b' },
-        assignedTo: 'Dr. Brian Harris', notes: [], tags: [], booking: null,
+        assignedTo: 'Dr. Wally Smith', notes: [], tags: [], booking: null,
         video: { recordedAt: hoursAgo(21), sentAt: hoursAgo(20), durationSec: 88, watchCount: 0, watchPct: 0, script: '' } },
 
       // Dropped at WELCOME (bounced) — top-of-funnel leakage

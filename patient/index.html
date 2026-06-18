@@ -37,9 +37,9 @@
     <!-- SCREEN 1 — WELCOME -->
     <section class="screen active" data-screen="0" data-key="welcome">
       <div class="doc">
-        <img class="av docface" id="docPhoto" alt="Dr. Brian Harris">
+        <img class="av docface" id="docPhoto" alt="Dr. Wally Smith">
         <div class="meta">
-          <b>Dr. Brian Harris</b>
+          <b>Dr. Wally Smith</b>
           <span class="role">Cosmetic Dentist · DMD</span>
           <span class="stars"><span class="s">★★★★★</span><b>4.9</b> · 1,200+ reviews</span>
         </div>
@@ -52,12 +52,12 @@
 
       <div class="eyebrow" style="margin-top:16px" id="welcomeEyebrow">Free Smile Assessment</div>
       <h1>See what's possible for <em>your smile</em></h1>
-      <p class="sub" id="welcomeSub">Get a personalized video consultation from Dr. Harris — right from your phone. No office visit, no cost.</p>
+      <p class="sub" id="welcomeSub">Get a personalized video consultation from Dr. Smith — right from your phone. No office visit, no cost.</p>
 
       <div class="steps" id="welcomeSteps">
         <div class="step"><div class="n">1</div><div><b>Snap 2 quick selfies</b><p>We'll guide you — the camera opens right here.</p></div></div>
         <div class="step"><div class="n">2</div><div><b>Tell us your goal</b><p>What you'd love to change about your smile.</p></div></div>
-        <div class="step"><div class="n">3</div><div><b>Get your video consultation</b><p>Dr. Harris records a personalized video just for you.</p></div></div>
+        <div class="step"><div class="n">3</div><div><b>Get your video consultation</b><p>Dr. Smith records a personalized video just for you.</p></div></div>
       </div>
 
       <div class="trust">
@@ -72,7 +72,7 @@
     <section class="screen" data-screen="1" data-key="goals">
       <div class="eyebrow">Step 1 · Your goals</div>
       <h1>What would you love to <em>change?</em></h1>
-      <p class="sub">Pick anything that applies — this helps Dr. Harris tailor your video consultation.</p>
+      <p class="sub">Pick anything that applies — this helps Dr. Smith tailor your video consultation.</p>
       <div class="chips" id="chips">
         <div class="chip" data-goal="Whiter teeth"><span class="ico">✨</span>Whiter teeth<span class="check">✓</span></div>
         <div class="chip" data-goal="Straighter teeth"><span class="ico">📐</span>Straighter teeth<span class="check">✓</span></div>
@@ -84,7 +84,7 @@
 
       <div class="ordiv">or describe it yourself</div>
       <div class="gtext">
-        <textarea id="goalText" placeholder="Tell Dr. Harris in your own words what you'd like to improve…" oninput="updateGoalCta()"></textarea>
+        <textarea id="goalText" placeholder="Tell Dr. Smith in your own words what you'd like to improve…" oninput="updateGoalCta()"></textarea>
       </div>
 
       <div class="grow"></div>
@@ -132,7 +132,7 @@
     <section class="screen sim" data-key="sim">
       <div class="eyebrow" id="simEyebrow">✨ Your preview is ready</div>
       <h1 id="simHead">Unlock your <em>new smile</em></h1>
-      <p class="sub" id="simSub">Your preview is ready. Enter your details to reveal it — and Dr. Harris will send your full personalized video consultation to follow.</p>
+      <p class="sub" id="simSub">Your preview is ready. Enter your details to reveal it — and Dr. Smith will send your full personalized video consultation to follow.</p>
 
       <div class="reveal locked" id="simReveal">
         <canvas id="simAfter" width="360" height="450"></canvas>
@@ -149,17 +149,17 @@
         <div class="field"><label>Email address</label><input id="semail" type="email" placeholder="you@email.com" oninput="validateSim()"></div>
         <div class="field"><label>Phone number</label><input id="sphone" placeholder="(555) 000-0000" oninput="validateSim()"></div>
         <div class="privacy"><span class="lk">🔒</span><span>We'll text you the moment your video consultation is ready. No spam, opt out anytime.</span></div>
-        <div class="asktrust"><img class="docface" id="docPhotoSm2" alt="Dr. Harris"><span>Reviewed personally by Dr. Brian Harris, DMD</span></div>
+        <div class="asktrust"><img class="docface" id="docPhotoSm2" alt="Dr. Smith"><span>Reviewed personally by Dr. Wally Smith, DMD</span></div>
         <div class="grow"></div>
         <button class="cta" id="simUnlock" onclick="unlockSim()" disabled>Reveal my smile ✨</button>
       </div>
 
       <!-- UNLOCKED: the payoff -->
       <div id="simPayoff" style="display:none">
-        <div class="disc"><span>ℹ️</span><span>Automated, illustrative preview only. Your actual results depend on a clinical evaluation by Dr. Harris.</span></div>
+        <div class="disc"><span>ℹ️</span><span>Automated, illustrative preview only. Your actual results depend on a clinical evaluation by Dr. Smith.</span></div>
         <div class="tiehdr">
           <b>This is just the preview.</b>
-          <p>Dr. Harris will record a personalized video walking through this and the real options for your smile — we'll text you when it's ready.</p>
+          <p>Dr. Smith will record a personalized video walking through this and the real options for your smile — we'll text you when it's ready.</p>
         </div>
         <div class="grow"></div>
         <button class="cta" onclick="next()">Continue →</button>
@@ -168,8 +168,8 @@
 
     <!-- SCREEN — CUSTOM QUESTIONS (optional, doctor-configured) -->
     <section class="screen" data-key="questions">
-      <div class="eyebrow">A few questions from Dr. Harris</div>
-      <h1>Help Dr. Harris <em>get the full picture</em></h1>
+      <div class="eyebrow">A few questions from Dr. Smith</div>
+      <h1>Help Dr. Smith <em>get the full picture</em></h1>
       <p class="sub">These are set up by the practice — answer what you can. (Demo shows all three question types.)</p>
 
       <div class="q">
@@ -197,7 +197,7 @@
         </select>
       </div>
 
-      <div class="qnote"><span>💡</span><span>Dr. Harris can add, remove, or reorder these questions — and choose text, multiple-choice, or dropdown for each.</span></div>
+      <div class="qnote"><span>💡</span><span>Dr. Smith can add, remove, or reorder these questions — and choose text, multiple-choice, or dropdown for each.</span></div>
 
       <div class="grow"></div>
       <button class="cta" onclick="next()">Continue</button>
@@ -206,8 +206,8 @@
     <!-- SCREEN 4 — CONTACT -->
     <section class="screen" data-screen="3" data-key="contact">
       <div class="eyebrow">Last step</div>
-      <h1>Where should Dr. Harris send your <em>personalized video consultation?</em></h1>
-      <p class="sub">Your photos are in. Tell us where to send it — Dr. Harris reviews your smile and records your video personally.</p>
+      <h1>Where should Dr. Smith send your <em>personalized video consultation?</em></h1>
+      <p class="sub">Your photos are in. Tell us where to send it — Dr. Smith reviews your smile and records your video personally.</p>
 
       <div class="summary" id="contactSummary"></div>
 
@@ -217,7 +217,7 @@
 
       <div class="privacy"><span class="lk">🔒</span><span>We only use this to send your video consultation. No spam, and you can opt out anytime.</span></div>
 
-      <div class="asktrust"><img class="docface" id="docPhotoSm" alt="Dr. Harris"><span>Reviewed personally by Dr. Brian Harris, DMD</span></div>
+      <div class="asktrust"><img class="docface" id="docPhotoSm" alt="Dr. Smith"><span>Reviewed personally by Dr. Wally Smith, DMD</span></div>
 
       <div class="grow"></div>
       <button class="cta" id="submitCta" onclick="submitForm()" disabled>Get my video consultation</button>
@@ -226,12 +226,12 @@
     <!-- SCREEN 5 — CONFIRMATION -->
     <section class="screen confirm" data-screen="4" data-key="confirm">
       <div class="confetti" id="confetti"></div>
-      <div class="conf-av"><img class="docface" id="docPhotoConf" alt="Dr. Harris"><div class="tick">✓</div></div>
+      <div class="conf-av"><img class="docface" id="docPhotoConf" alt="Dr. Smith"><div class="tick">✓</div></div>
       <h1>You're all set, <em id="confName">there</em>!</h1>
-      <p class="sub">Dr. Harris will personally review your smile and record your video. Here's what happens next.</p>
+      <p class="sub">Dr. Smith will personally review your smile and record your video. Here's what happens next.</p>
 
       <div class="next">
-        <div class="item"><div class="d"></div><div><b>Dr. Harris reviews your photos</b><p>A real dentist — not a bot — studies your smile.</p></div></div>
+        <div class="item"><div class="d"></div><div><b>Dr. Smith reviews your photos</b><p>A real dentist — not a bot — studies your smile.</p></div></div>
         <div class="item"><div class="d"></div><div><b>Your video consultation arrives</b><p>He reviews every smile personally, so it takes 5–7 days. We'll text you the moment it's ready.</p></div></div>
         <div class="item"><div class="d"></div><div><b>Book a visit if you'd like</b><p>Totally optional — only if you want to go further.</p></div></div>
       </div>
