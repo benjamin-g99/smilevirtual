@@ -1,21 +1,21 @@
 /* =============================================================================
-   SmileVirtual — shared data layer
+   Virtual Consult — shared data layer
    -----------------------------------------------------------------------------
    A tiny, dependency-free "backend" that lives in localStorage so the patient
    flow and the doctor portal share the SAME data inside one browser. A patient
    submission written here shows up in the doctor's queue on the next load.
 
    This is the demo seam: in production, swap the read/write/seed internals for
-   real API calls (the public method surface — SmileStore.* — stays the same).
+   real API calls (the public method surface — Store.* — stays the same).
    ============================================================================= */
 (function (global) {
   'use strict';
 
-  const KEY = 'smilevirtual.leads.v1';
-  const CFG_KEY = 'smilevirtual.config.v1';
-  const CASES_KEY = 'smilevirtual.cases.v1';
-  const CLICKS_KEY = 'smilevirtual.clicks.v1';
-  const SEEDED_KEY = 'smilevirtual.seeded.v6';
+  const KEY = 'vconsult.leads.v1';
+  const CFG_KEY = 'vconsult.config.v1';
+  const CASES_KEY = 'vconsult.cases.v1';
+  const CLICKS_KEY = 'vconsult.clicks.v1';
+  const SEEDED_KEY = 'vconsult.seeded.v6';
 
   /* ---- SLA + status model -------------------------------------------------
      The portal's north-star is MEDIAN TIME-TO-SEND. Target SLA below. */
@@ -42,7 +42,7 @@
   }
   function write(leads) {
     try { localStorage.setItem(KEY, JSON.stringify(leads)); }
-    catch (e) { console.warn('[SmileStore] write failed (quota?)', e); }
+    catch (e) { console.warn('[Store] write failed (quota?)', e); }
     notify();
   }
 
@@ -81,7 +81,7 @@
   }
 
   /* ---- public API --------------------------------------------------------- */
-  const SmileStore = {
+  const Store = {
     STATUS, SLA_HOURS,
 
     config() {
@@ -516,5 +516,5 @@
     ];
   }
 
-  global.SmileStore = SmileStore;
+  global.Store = Store;
 })(window);

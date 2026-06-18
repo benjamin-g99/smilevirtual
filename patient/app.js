@@ -1,7 +1,7 @@
 /* =============================================================================
    Smile Consult — patient flow
    Real(ish) build: live camera capture (getUserMedia) with a file-input fallback
-   for in-app browsers, and every step is persisted to SmileStore so the lead —
+   for in-app browsers, and every step is persisted to Store so the lead —
    complete OR abandoned — shows up in the doctor portal.
    ============================================================================= */
 
@@ -16,7 +16,7 @@ const barFill = document.getElementById('barFill');
 const backBtn = document.getElementById('backBtn');
 
 /* seed demo data on first run so the doctor portal isn't empty */
-if (window.SmileStore) SmileStore.ensureSeeded();
+if (window.Store) Store.ensureSeeded();
 
 /* ---- UTM / source capture (real, from the URL) ------------------------- */
 function getSource(){
@@ -38,8 +38,8 @@ const SOURCE = getSource();
 
 /* ---- persistence: upsert the lead as the visitor progresses ------------ */
 function persist(partial){
-  if(!window.SmileStore) return;
-  leadId = SmileStore.upsert(Object.assign({ id:leadId, source:SOURCE }, partial));
+  if(!window.Store) return;
+  leadId = Store.upsert(Object.assign({ id:leadId, source:SOURCE }, partial));
 }
 
 /* keyed screens + dynamic flow */

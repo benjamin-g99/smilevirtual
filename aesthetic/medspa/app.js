@@ -1,5 +1,5 @@
 /* =============================================================================
-   Aesthetic Virtual — Med Spa AI Plan Builder (console)
+   Aesthetic Consult — Med Spa AI Plan Builder (console)
    The scalable alternative to recorded video: an AI treatment plan, drafted from
    the patient's concerns, that the provider edits + approves in one tap, then
    sends as the patient's closing artifact (book + membership).

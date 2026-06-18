@@ -1,5 +1,5 @@
 /* =============================================================================
-   MedSpaStore — data layer + AI plan engine for Aesthetic Virtual (med spa)
+   MedSpaStore — data layer + AI plan engine for Aesthetic Consult (med spa)
    -----------------------------------------------------------------------------
    The med-spa model replaces the recorded video with an INSTANT AI TREATMENT PLAN
    the provider approves in one tap (scalable for high volume / lower value).

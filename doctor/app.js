@@ -1,8 +1,8 @@
 /* =============================================================================
-   SmileVirtual — Practice Console (doctor + front-desk)
+   Virtual Consult — Practice Console (doctor + front-desk)
    A clinical work queue with an SLA clock, a consult workspace built to compress
    time-to-video, and a source-level performance loop. Reads/writes the same
-   SmileStore the patient flow writes to.
+   Store the patient flow writes to.
    ============================================================================= */
 (function (global) {
   'use strict';
@@ -18,21 +18,21 @@
 
   const $ = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => [...r.querySelectorAll(s)];
-  const cfg = () => SmileStore.config();
+  const cfg = () => Store.config();
 
   /* ---------- boot ---------- */
   function boot(){
-    SmileStore.ensureSeeded();
+    Store.ensureSeeded();
     refreshRolePick();
     role = $('#rolePick').value;
     $('#rolePick').addEventListener('change', e=>{ role=e.target.value; render(); });
-    $('#resetDemo').addEventListener('click', ()=>{ if(confirm('Reset all demo leads to the seeded set?')){ SmileStore.reset(); render(); } });
+    $('#resetDemo').addEventListener('click', ()=>{ if(confirm('Reset all demo leads to the seeded set?')){ Store.reset(); render(); } });
     $('#brandBtn').addEventListener('click', openBrand);
     $('#brandModal').addEventListener('click', e=>{ if(e.target.id==='brandModal') closeBrand(); });
     $$('.navbtn').forEach(b=>b.addEventListener('click', ()=>setView(b.dataset.view)));
     $$('.chipf').forEach(b=>b.addEventListener('click', ()=>{ activeFilter=b.dataset.filter; $$('.chipf').forEach(x=>x.classList.toggle('active',x===b)); renderQueue(); }));
     $('#scrim').addEventListener('click', closeDrawer);
-    SmileStore.onChange(render);   // live refresh (incl. patient submissions in other tab)
+    Store.onChange(render);   // live refresh (incl. patient submissions in other tab)
     render();
   }
 
@@ -46,7 +46,7 @@
   }
 
   function render(){
-    const m = SmileStore.metrics();
+    const m = Store.metrics();
     $('#queueBadge').textContent = m.queueSize;
     if(activeView==='queue') renderQueue();
     else if(activeView==='dash') renderPerf();
@@ -82,7 +82,7 @@
     return {cls:'ok', txt:`${lead.slaLeft}h left on SLA`};
   }
   function heatLabel(h){ return {hot:'🔥 Hot',warm:'Warm',cold:'Cold',done:'Closed loop'}[h]||h; }
-  function srcOf(lead){ return SmileStore.channel(lead); }
+  function srcOf(lead){ return Store.channel(lead); }
 
   /* ---- stage engine: the single source of truth for "what stage is this lead
      in and what's the ONE next action?" Consumed by the queue row hint, the
@@ -172,12 +172,12 @@
   // sort: live work first (hot→warm→cold), by SLA urgency, then closed-loop by recency
   const HEAT_RANK={hot:0,warm:1,cold:2,done:3};
   function renderQueue(){
-    const m = SmileStore.metrics();
+    const m = Store.metrics();
     $('#queueSla').innerHTML = `${m.queueSize} awaiting a video · `+
       (m.overdue? `<b style="color:var(--coral)">${m.overdue} overdue</b> · ` : '')+
       `median time-to-send <b>${m.medianTimeToSendH==null?'—':m.medianTimeToSendH+'h'}</b>`;
 
-    const leads = SmileStore.all().filter(passesFilter).sort((a,b)=>{
+    const leads = Store.all().filter(passesFilter).sort((a,b)=>{
       if(HEAT_RANK[a.heat]!==HEAT_RANK[b.heat]) return HEAT_RANK[a.heat]-HEAT_RANK[b.heat];
       if(a.slaLeft!=null && b.slaLeft!=null) return a.slaLeft-b.slaLeft;
       return new Date(b.createdAt)-new Date(a.createdAt);
@@ -226,7 +226,7 @@
       <button class="psub ${perfTab==='links'?'on':''}" onclick="DoctorApp.setPerfTab('links')">🔗 Link-in-bio</button>
     </div>`;
     if(perfTab==='links'){ $('#perf').innerHTML = subnav + renderLinkPerf(); return; }
-    const m = SmileStore.metrics(), a = SmileStore.analytics(perfRange), cv=a.conversion;
+    const m = Store.metrics(), a = Store.analytics(perfRange), cv=a.conversion;
     const money = n => '$'+(n||0).toLocaleString();
     let html = subnav + rangeBarHtml(' · <b>'+a.funnel[0].count+'</b> leads');
     // headline KPIs
@@ -310,7 +310,7 @@
     </div>`;
   }
   function renderLinkPerf(){
-    const c=cfg(); const clicks=SmileStore.clickStats(perfRange); const links=c.links||[];
+    const c=cfg(); const clicks=Store.clickStats(perfRange); const links=c.links||[];
     const rows=[{id:'primary', label:'✨ '+((c.site&&c.site.ctaText)||'Free smile preview'), primary:true}]
       .concat(links.map(l=>({id:l.id, label:(l.icon?l.icon+' ':'')+l.label})));
     const total=Object.values(clicks).reduce((s,n)=>s+(+n||0),0);
@@ -336,7 +336,7 @@
         <div class="sharerow" style="margin-top:16px">
           <a class="cta-d" href="../link/" target="_blank">👁 Open bio page</a>
           <input class="shareurl" readonly value="${esc(pubUrl('../link/'))}" onclick="this.select()">
-          <button class="cta-d ghost-d" onclick="DoctorApp.share('../link/','My SmileVirtual bio link')">🔗 Share</button>
+          <button class="cta-d ghost-d" onclick="DoctorApp.share('../link/','My Virtual Consult bio link')">🔗 Share</button>
         </div>
         <div class="hint" style="margin-top:8px">Counts respect the date range above. Manage the links themselves in <b>Settings → Link-in-bio</b>.</div>
       </div>`;
@@ -352,7 +352,7 @@
   }
 
   /* ---------- SETTINGS ---------- */
-  function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; SmileStore.saveConfig(c); }
+  function cfgSet(path, value){ const c=cfg(); const p=path.split('.'); let o=c; for(let i=0;i<p.length-1;i++){ o[p[i]]=o[p[i]]||{}; o=o[p[i]]; } o[p[p.length-1]]=value; Store.saveConfig(c); }
   const SET_ICONS={'Practice & doctor':'🦷','Brand & theme':'🎨','Team & permissions':'👥','Intake questions':'❓','Tracking & attribution':'📈','Reviews & ratings':'⭐','Landing page':'🌐','Marketing spend':'💸','Link-in-bio':'🔗','Directory profile':'📍','Embeddable widgets':'🧩'};
   function pubUrl(path){ try{ return new URL(path, location.href).href; }catch(e){ return path; } }
   function shareRow(path, label){ const url=pubUrl(path);
@@ -366,7 +366,7 @@
   function fld(label,path,val,type){ return `<label class="sfield"><span>${esc(label)}</span><input type="${type||'text'}" value="${esc(val==null?'':val)}" onchange="DoctorApp.cfg('${path}',this.value)"></label>`; }
 
   function renderSettings(){
-    const c=cfg(), clicks=SmileStore.clickStats();
+    const c=cfg(), clicks=Store.clickStats();
     const doctor=c.doctor||{}, rev=c.reviews||{}, an=c.analytics||{}, site=c.site||{}, spend=c.spendBySource||{};
 
     const profile = scard('Practice & doctor', 'Shown across the patient flow, landing page, directory and video pages.',
@@ -424,7 +424,7 @@
        ${fld('Primary CTA text','site.ctaText',site.ctaText)}
        ${shareRow('../site/','My practice landing page')}`);
 
-    const channels = SmileStore.channelsInUse();
+    const channels = Store.channelsInUse();
     const spendRows = spendList().map((r,i)=>`
       <div class="spendrow">
         <input value="${esc(r.label||'')}" onchange="DoctorApp.spendField(${i},'label',this.value)" placeholder="e.g. Google Search">
@@ -442,7 +442,7 @@
        <button class="cta-d ghost-d" onclick="DoctorApp.spendAdd()">+ Add spend line</button>`);
 
     const links = scard('Link-in-bio', 'Your Linktree-style bio page for Instagram/TikTok. Reorder-free list below; preview or share the public link. Click counts are tracked.',
-      `${shareRow('../link/','My SmileVirtual bio link')}
+      `${shareRow('../link/','My Virtual Consult bio link')}
        <div class="submini" style="margin-top:4px">Links</div>
        <div class="linklist">`+(c.links||[]).map((lk,i)=>`
         <div class="linkrow">
@@ -455,12 +455,12 @@
        <button class="cta-d ghost-d" onclick="DoctorApp.linkAdd()">+ Add link</button>`);
 
     const dirId = (c.doctor && c.doctor.directoryId) || 'harris';
-    const directoryCard = scard('Directory profile', 'Your public listing in the SmileVirtual doctor directory — NPI-verified, with reviews, response time and before/afters. Patients find you by goal + location.',
+    const directoryCard = scard('Directory profile', 'Your public listing in the Virtual Consult doctor directory — NPI-verified, with reviews, response time and before/afters. Patients find you by goal + location.',
       `<div class="dirsum">
          <div><b>${esc((c.doctor||{}).name||'Dr.')}</b> · ${esc((c.doctor||{}).city||'')}, ${esc((c.doctor||{}).state||'')}</div>
          <div class="muted small">★ ${esc((c.reviews||{}).googleRating||'—')} · ${esc((c.reviews||{}).googleCount||0)} reviews · ✓ NPI-verified</div>
        </div>
-       ${shareRow('../directory/?doctor='+encodeURIComponent(dirId),'My SmileVirtual directory profile')}`);
+       ${shareRow('../directory/?doctor='+encodeURIComponent(dirId),'My Virtual Consult directory profile')}`);
 
     // self-contained widget previews + copy-paste snippets (no external dependency)
     const wb=c.widgets||{}, br=c.brand||{};
@@ -520,40 +520,40 @@
   }
 
   /* settings mutations */
-  function staffAdd(){ const c=cfg(); c.staff=(c.staff||[]).concat([{id:'u_'+Math.random().toString(36).slice(2,6),name:'New member',role:'Front desk',canRecord:false}]); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
-  function staffDel(i){ const c=cfg(); c.staff.splice(i,1); SmileStore.saveConfig(c); renderSettings(); refreshRolePick(); }
-  function staffRec(i,on){ const c=cfg(); c.staff[i].canRecord=on; SmileStore.saveConfig(c); }
-  function staffField(i,f,v){ const c=cfg(); c.staff[i][f]=v; SmileStore.saveConfig(c); refreshRolePick(); }
-  function qAdd(){ const c=cfg(); c.questions=(c.questions||[]).concat([{type:'text',label:'New question'}]); SmileStore.saveConfig(c); renderSettings(); }
-  function qDel(i){ const c=cfg(); c.questions.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
-  function qMove(i,d){ const c=cfg(); const j=i+d; if(j<0||j>=c.questions.length) return; const a=c.questions; [a[i],a[j]]=[a[j],a[i]]; SmileStore.saveConfig(c); renderSettings(); }
-  function qField(i,f,v){ const c=cfg(); if(f==='options'){ c.questions[i].options=v.split(',').map(s=>s.trim()).filter(Boolean); } else { c.questions[i][f]=v; } SmileStore.saveConfig(c); if(f==='type') renderSettings(); }
-  function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); SmileStore.saveConfig(c); renderSettings(); }
-  function linkDel(i){ const c=cfg(); c.links.splice(i,1); SmileStore.saveConfig(c); renderSettings(); }
-  function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; SmileStore.saveConfig(c); }
+  function staffAdd(){ const c=cfg(); c.staff=(c.staff||[]).concat([{id:'u_'+Math.random().toString(36).slice(2,6),name:'New member',role:'Front desk',canRecord:false}]); Store.saveConfig(c); renderSettings(); refreshRolePick(); }
+  function staffDel(i){ const c=cfg(); c.staff.splice(i,1); Store.saveConfig(c); renderSettings(); refreshRolePick(); }
+  function staffRec(i,on){ const c=cfg(); c.staff[i].canRecord=on; Store.saveConfig(c); }
+  function staffField(i,f,v){ const c=cfg(); c.staff[i][f]=v; Store.saveConfig(c); refreshRolePick(); }
+  function qAdd(){ const c=cfg(); c.questions=(c.questions||[]).concat([{type:'text',label:'New question'}]); Store.saveConfig(c); renderSettings(); }
+  function qDel(i){ const c=cfg(); c.questions.splice(i,1); Store.saveConfig(c); renderSettings(); }
+  function qMove(i,d){ const c=cfg(); const j=i+d; if(j<0||j>=c.questions.length) return; const a=c.questions; [a[i],a[j]]=[a[j],a[i]]; Store.saveConfig(c); renderSettings(); }
+  function qField(i,f,v){ const c=cfg(); if(f==='options'){ c.questions[i].options=v.split(',').map(s=>s.trim()).filter(Boolean); } else { c.questions[i][f]=v; } Store.saveConfig(c); if(f==='type') renderSettings(); }
+  function linkAdd(){ const c=cfg(); c.links=(c.links||[]).concat([{id:'lk_'+Math.random().toString(36).slice(2,6),label:'New link',url:'https://',icon:'🔗'}]); Store.saveConfig(c); renderSettings(); }
+  function linkDel(i){ const c=cfg(); c.links.splice(i,1); Store.saveConfig(c); renderSettings(); }
+  function linkField(i,f,v){ const c=cfg(); c.links[i][f]=v; Store.saveConfig(c); }
   // marketing spend as custom line-items {label,channel,amount}; normalizes the legacy object form
   function spendList(){ const s=cfg().spendBySource; if(Array.isArray(s)) return s.map(x=>Object.assign({},x));
     return Object.keys(s||{}).map(k=>({label:k.charAt(0).toUpperCase()+k.slice(1), channel:k.charAt(0).toUpperCase()+k.slice(1), amount:+s[k]||0})); }
-  function spendSave(list){ const c=cfg(); c.spendBySource=list; SmileStore.saveConfig(c); }
-  function spendAdd(){ const l=spendList(); l.push({label:'New campaign', channel:(SmileStore.channelsInUse()[0]||'Google'), amount:0}); spendSave(l); renderSettings(); }
+  function spendSave(list){ const c=cfg(); c.spendBySource=list; Store.saveConfig(c); }
+  function spendAdd(){ const l=spendList(); l.push({label:'New campaign', channel:(Store.channelsInUse()[0]||'Google'), amount:0}); spendSave(l); renderSettings(); }
   function spendDel(i){ const l=spendList(); l.splice(i,1); spendSave(l); renderSettings(); }
   function spendField(i,f,v){ const l=spendList(); if(!l[i]) return; l[i][f]= f==='amount'? (+v||0) : v; spendSave(l); }
-  function aliasField(k,v){ const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); }
-  function widgetField(k,v){ const c=cfg(); c.widgets=Object.assign({},c.widgets); c.widgets[k]=v; SmileStore.saveConfig(c); renderSettings(); }
+  function aliasField(k,v){ const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; Store.saveConfig(c); }
+  function widgetField(k,v){ const c=cfg(); c.widgets=Object.assign({},c.widgets); c.widgets[k]=v; Store.saveConfig(c); renderSettings(); }
   function copyEl(id){ const el=document.getElementById(id); if(!el) return; const t=el.textContent;
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).catch(()=>{}); }
     else { const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
     toast('Embed code copied'); }
-  function aliasDel(k){ const c=cfg(); if(c.sourceAliases) delete c.sourceAliases[k]; SmileStore.saveConfig(c); renderSettings(); }
-  function aliasAdd(){ const k=($('#aliasKey').value||'').trim().toLowerCase(), v=($('#aliasVal').value||'').trim(); if(!k||!v) return; const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; SmileStore.saveConfig(c); renderSettings(); }
+  function aliasDel(k){ const c=cfg(); if(c.sourceAliases) delete c.sourceAliases[k]; Store.saveConfig(c); renderSettings(); }
+  function aliasAdd(){ const k=($('#aliasKey').value||'').trim().toLowerCase(), v=($('#aliasVal').value||'').trim(); if(!k||!v) return; const c=cfg(); c.sourceAliases=c.sourceAliases||{}; c.sourceAliases[k]=v; Store.saveConfig(c); renderSettings(); }
 
   /* ---------- DRAWER / CONSULT WORKSPACE ---------- */
-  function openLead(id){ openLeadId=id; SmileStore.setStatus && maybeMarkReview(id); renderDrawer(id); $('#drawer').classList.add('show'); $('#scrim').classList.add('show'); }
-  function maybeMarkReview(id){ const l=SmileStore.get(id); if(l && l.status==='new'){ SmileStore.setStatus(id,'in_review'); } }
+  function openLead(id){ openLeadId=id; Store.setStatus && maybeMarkReview(id); renderDrawer(id); $('#drawer').classList.add('show'); $('#scrim').classList.add('show'); }
+  function maybeMarkReview(id){ const l=Store.get(id); if(l && l.status==='new'){ Store.setStatus(id,'in_review'); } }
   function closeDrawer(){ openLeadId=null; $('#drawer').classList.remove('show'); $('#scrim').classList.remove('show'); }
 
   function renderDrawer(id){
-    const l = SmileStore.get(id); if(!l){ closeDrawer(); return; }
+    const l = Store.get(id); if(!l){ closeDrawer(); return; }
     const c = l.contact||{};
     const ava = (l.photos&&l.photos[0]&&l.photos[0].indexOf('data:')===0)?`<img src="${l.photos[0]}">`:initials(l);
     const questions = cfg().questions||[];
@@ -720,17 +720,17 @@
       c.fillRect(px,py,tw-gap,ph);} c.restore();
   }
   function simPreview(prop,v){ drTweak[prop]=+v; drawDrawerSmile($('#drsimAfter'), true); }
-  function simTweak(id,prop,v){ SmileStore.saveSimTweak(id,{[prop]:+v}); }
-  function markAttended(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{attended:on})}); }
-  function markPaid(id,on){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{paid:on})}); }
-  function setTreatmentValue(id,v){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{treatmentValue:+v||0})}); }
-  function setConversionNotes(id,v){ const l=SmileStore.get(id); SmileStore.patch(id,{booking:Object.assign({},l.booking,{conversionNotes:v})}); }
+  function simTweak(id,prop,v){ Store.saveSimTweak(id,{[prop]:+v}); }
+  function markAttended(id,on){ const l=Store.get(id); Store.patch(id,{booking:Object.assign({},l.booking,{attended:on})}); }
+  function markPaid(id,on){ const l=Store.get(id); Store.patch(id,{booking:Object.assign({},l.booking,{paid:on})}); }
+  function setTreatmentValue(id,v){ const l=Store.get(id); Store.patch(id,{booking:Object.assign({},l.booking,{treatmentValue:+v||0})}); }
+  function setConversionNotes(id,v){ const l=Store.get(id); Store.patch(id,{booking:Object.assign({},l.booking,{conversionNotes:v})}); }
   // manual status override; ensure a booking object exists when moved to booked
-  function setStatusManual(id,status){ const extra = (status==='booked') ? { booking: Object.assign({ bookedAt:new Date().toISOString(), apptTime:'Manually marked booked' }, (SmileStore.get(id)||{}).booking) } : {}; SmileStore.setStatus(id,status,extra); toast('Status set to '+(SmileStore.STATUS[status]||{}).label); }
+  function setStatusManual(id,status){ const extra = (status==='booked') ? { booking: Object.assign({ bookedAt:new Date().toISOString(), apptTime:'Manually marked booked' }, (Store.get(id)||{}).booking) } : {}; Store.setStatus(id,status,extra); toast('Status set to '+(Store.STATUS[status]||{}).label); }
 
   function statusFlowHtml(l){
     const steps=[['new','New'],['in_review','In review'],['recorded','Recorded'],['sent','Sent'],['viewed','Viewed'],['booked','Booked']];
-    const order=SmileStore.STATUS[l.status]?SmileStore.STATUS[l.status].order:0;
+    const order=Store.STATUS[l.status]?Store.STATUS[l.status].order:0;
     const na=nextAction(l);
     // headline: where this lead IS + the one-line "what's next / waiting on".
     const banner=`<div class="stagebanner ${na.waiting?'waiting':''}">
@@ -741,38 +741,38 @@
       ${banner}
       <div class="statusflow">`+
       steps.map(([k,lbl],i)=>{
-        const o=SmileStore.STATUS[k].order;
+        const o=Store.STATUS[k].order;
         const cls = l.status===k?'cur':(o<order?'done':'');
         return `<span class="stp ${cls}">${lbl}</span>${i<steps.length-1?'<span class="arr">→</span>':''}`;
       }).join('')+`</div>
       <div class="statusset">
         <span>Override stage</span>
         <select class="assignsel" onchange="DoctorApp.setStatusManual('${l.id}',this.value)">
-          ${Object.keys(SmileStore.STATUS).map(k=>`<option value="${k}" ${l.status===k?'selected':''}>${SmileStore.STATUS[k].label}</option>`).join('')}
+          ${Object.keys(Store.STATUS).map(k=>`<option value="${k}" ${l.status===k?'selected':''}>${Store.STATUS[k].label}</option>`).join('')}
         </select>
       </div></div>`;
   }
 
   /* ---------- workspace actions ---------- */
-  function assign(id,who){ SmileStore.assign(id, who||null); }
-  function toggleTag(id,t){ SmileStore.toggleTag(id,t); }
+  function assign(id,who){ Store.assign(id, who||null); }
+  function toggleTag(id,t){ Store.toggleTag(id,t); }
   function addNote(id){
     const inp=$('#noteInput'); const v=inp.value.trim(); if(!v) return;
-    SmileStore.addNote(id, v, role); inp.value='';
+    Store.addNote(id, v, role); inp.value='';
   }
   function copyScript(id){
-    const l=SmileStore.get(id); const s=ScriptGen.generate(l,cfg()).plain;
+    const l=Store.get(id); const s=ScriptGen.generate(l,cfg()).plain;
     navigator.clipboard && navigator.clipboard.writeText(s);
     toast('Script copied to clipboard');
   }
   function sendVideo(id){
-    SmileStore.setStatus(id,'sent');
+    Store.setStatus(id,'sent');
     toast('Video consult sent — patient notified by text + email');
   }
-  function simulate(id,to){ SmileStore.setStatus(id,to); toast(to==='booked'?'🎉 Patient booked a visit':'Patient viewed the video'); }
+  function simulate(id,to){ Store.setStatus(id,to); toast(to==='booked'?'🎉 Patient booked a visit':'Patient viewed the video'); }
   function nudge(id,kind){
     const map={sent:'Watch-reminder sent (“your video is waiting”).',viewed:'Booking nudge sent (limited-time new-patient offer).',recover:'Recovery nudge sent (“finish your free preview”).'};
-    SmileStore.addNote(id, 'Automated follow-up: '+map[kind], 'System');
+    Store.addNote(id, 'Automated follow-up: '+map[kind], 'System');
     toast(map[kind]);
   }
 
@@ -811,7 +811,7 @@
   function audioLevel(){ if(!analyser) return 0; analyser.getByteFrequencyData(freqData); let s=0; for(let i=0;i<freqData.length;i++) s+=freqData[i]; return Math.min(1,(s/freqData.length)/120); }
 
   async function openRecorder(id){
-    studio.id=id; studio.lead=SmileStore.get(id); studio.idx=0; studio.pip=0; studio.tele=true;
+    studio.id=id; studio.lead=Store.get(id); studio.idx=0; studio.pip=0; studio.tele=true;
     setOrient('land');
     buildLibrary(); loadBrandLogo(); loadDocPhoto();
     studio.slides = await buildSlides(studio.lead);
@@ -1042,7 +1042,7 @@
     html+=`<div class="editrow"><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(-1)">↑ Up</button><button class="cta-d ghost-d" onclick="DoctorApp.moveSlide(1)">↓ Down</button>${studio.slides.length>1?`<button class="cta-d delbtn" onclick="DoctorApp.removeSlide(${studio.idx})">Delete</button>`:''}</div>`;
     $('#tabEdit').innerHTML=html;
   }
-  function editSim(prop,val){ const s=studio.slides[studio.idx]; if(!s) return; if(!s.sim) s.sim={white:0.9,natural:0.2}; s.sim[prop]=+val; if(studio.id) SmileStore.saveSimTweak(studio.id,{[prop]:+val}); }
+  function editSim(prop,val){ const s=studio.slides[studio.idx]; if(!s) return; if(!s.sim) s.sim={white:0.9,natural:0.2}; s.sim[prop]=+val; if(studio.id) Store.saveSimTweak(studio.id,{[prop]:+val}); }
   function edit(prop,val){
     const s=studio.slides[studio.idx]; if(!s) return;
     if(prop==='_lines'){ s.lines=val.split('\n').filter(x=>x.trim()).map(line=>{const [k,v]=line.split('|');return {k:(k||'').trim(),v:(v||'').trim()};}); }
@@ -1054,7 +1054,7 @@
 
   /* ----- case library (seeded + persisted uploads) ----- */
   function buildLibrary(){
-    library = SEED_CASES().concat(SmileStore.cases().map(c=>Object.assign({persisted:true}, c)));
+    library = SEED_CASES().concat(Store.cases().map(c=>Object.assign({persisted:true}, c)));
     library.forEach(c=>{ c.beforeImg=imgFrom(c.before); if(c.after) c.afterImg=imgFrom(c.after); });
   }
   function SEED_CASES(){
@@ -1086,7 +1086,7 @@
         (cs.persisted?`<button class="cx" title="Remove from library">✕</button>`:'');
       el.querySelector('.thumbs').onclick=()=>addCaseSlide(cs);
       el.querySelector('.cl').onclick=()=>addCaseSlide(cs);
-      const cx=el.querySelector('.cx'); if(cx) cx.onclick=(e)=>{ e.stopPropagation(); SmileStore.removeCase(cs.id); buildLibrary(); renderCaseLib(); toast('Removed from library'); };
+      const cx=el.querySelector('.cx'); if(cx) cx.onclick=(e)=>{ e.stopPropagation(); Store.removeCase(cs.id); buildLibrary(); renderCaseLib(); toast('Removed from library'); };
       box.appendChild(el);
     });
     if(!box.children.length) box.innerHTML='<div class="hint" style="grid-column:1/-1">No matching cases.</div>';
@@ -1102,7 +1102,7 @@
     const files=[...e.target.files];
     for(const f of files){ const url=await fileToDataUrl(f); const img=await loadImg(url); if(!img) continue;
       const thumb=downscale(img,460);
-      SmileStore.addCase({label:f.name.replace(/\.[^.]+$/,'').slice(0,26), tags:'uploaded', before:thumb, single:true});
+      Store.addCase({label:f.name.replace(/\.[^.]+$/,'').slice(0,26), tags:'uploaded', before:thumb, single:true});
     }
     buildLibrary(); renderCaseLib(); toast(files.length+' case image(s) saved to your library');
     e.target.value='';
@@ -1157,13 +1157,13 @@
   // wire the brand inputs (works wherever the form is rendered — modal or settings)
   function wireBrandForm(){
     const p=$('#cPrimary'); if(!p) return;
-    p.oninput=e=>{ SmileStore.saveBrand({primary:e.target.value}); drawBrandPrev(); };
-    $('#cAccent').oninput=e=>{ SmileStore.saveBrand({accent:e.target.value}); drawBrandPrev(); };
-    $('#bName').oninput=e=>{ SmileStore.saveBrand({name:e.target.value}); drawBrandPrev(); };
+    p.oninput=e=>{ Store.saveBrand({primary:e.target.value}); drawBrandPrev(); };
+    $('#cAccent').oninput=e=>{ Store.saveBrand({accent:e.target.value}); drawBrandPrev(); };
+    $('#bName').oninput=e=>{ Store.saveBrand({name:e.target.value}); drawBrandPrev(); };
     $('#logoUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
-      const logo=downscalePng(img,240); SmileStore.saveBrand({logo}); $('#logoPrev').innerHTML=`<img src="${logo}">`; loadBrandLogo(); drawBrandPrev(); };
+      const logo=downscalePng(img,240); Store.saveBrand({logo}); $('#logoPrev').innerHTML=`<img src="${logo}">`; loadBrandLogo(); drawBrandPrev(); };
     $('#docUp').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const img=await loadImg(await fileToDataUrl(f)); if(!img) return;
-      const photo=downscale(img,300); const c=cfg(); c.doctor=Object.assign({},c.doctor,{photo}); SmileStore.saveConfig(c); $('#docPrev').innerHTML=`<img src="${photo}">`; loadDocPhoto(); };
+      const photo=downscale(img,300); const c=cfg(); c.doctor=Object.assign({},c.doctor,{photo}); Store.saveConfig(c); $('#docPrev').innerHTML=`<img src="${photo}">`; loadDocPhoto(); };
   }
   function openBrand(){ loadBrandLogo(); $('#brandForm').innerHTML=brandFormHtml(); wireBrandForm(); $('#brandModal').classList.add('show'); drawBrandPrev(); }
   function closeBrand(){ $('#brandModal').classList.remove('show'); renderBrandTab(); }
@@ -1201,7 +1201,7 @@
   }
   function useRecording(){
     const rec=recordedBlobs[studio.id];
-    SmileStore.saveVideo(studio.id,{durationSec:rec?rec.dur:0, hasRecording:true, slides:studio.slides.length, orient:studio.orient});
+    Store.saveVideo(studio.id,{durationSec:rec?rec.dur:0, hasRecording:true, slides:studio.slides.length, orient:studio.orient});
     closeRecorder(); toast('Presentation saved. Ready to send.');
   }
   function closeRecorder(){
@@ -1214,7 +1214,7 @@
 
   /* ---------- PATIENT CLOSING-PAGE / EMAIL PREVIEW ---------- */
   function previewEmail(id){
-    const l=SmileStore.get(id); const c=l.contact||{};
+    const l=Store.get(id); const c=l.contact||{};
     const rec=recordedBlobs[id];
     const plan=planFor(l);
     $('#emailCard').innerHTML=`
@@ -1246,7 +1246,7 @@
     $('#emailModal').classList.add('show');
     if(l.sim&&l.sim.enabled){ drawBA(); initBaDrag(); }
   }
-  function bookFromEmail(id){ SmileStore.setStatus(id,'booked',{booking:{bookedAt:new Date().toISOString(),apptTime:'Self-booked from video — next available'}}); closeEmail(); toast('🎉 Patient self-booked from the video page'); }
+  function bookFromEmail(id){ Store.setStatus(id,'booked',{booking:{bookedAt:new Date().toISOString(),apptTime:'Self-booked from video — next available'}}); closeEmail(); toast('🎉 Patient self-booked from the video page'); }
   function closeEmail(){ $('#emailModal').classList.remove('show'); }
 
   // ballpark plan from goals (demo heuristic)

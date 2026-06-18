@@ -1,7 +1,7 @@
 /* =============================================================================
-   AestheticStore — data layer for Aesthetic Virtual (plastics first)
+   AestheticStore — data layer for Aesthetic Consult (plastics first)
    -----------------------------------------------------------------------------
-   Mirrors SmileStore's shape (so the practice console can be reused) but lives in
+   Mirrors Store's shape (so the practice console can be reused) but lives in
    its OWN localStorage namespace, so aesthetic leads never mix with dental ones.
    Plastics-specific: procedures (not goals), a qualification/candidacy score
    (value × readiness × budget), financing, and NO simulation.

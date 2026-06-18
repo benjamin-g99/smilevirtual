@@ -1,5 +1,5 @@
 /* =============================================================================
-   SmileVirtual — personalized video script generator
+   Virtual Consult — personalized video script generator
    -----------------------------------------------------------------------------
    Turns a lead's intake (goals, free-text, question answers, sim) into a ready
    teleprompter draft so the doctor RIFFS instead of COMPOSES. This is the single

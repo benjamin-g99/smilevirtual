@@ -1,8 +1,8 @@
-# SmileVirtual + Aesthetic Virtual — Full Requirements & Rebuild Specification
+# Virtual Consult + Aesthetic Consult — Full Requirements & Rebuild Specification
 
 > **Purpose of this document.** This is a complete, implementation-level spec for two
-> related prototypes built in one repository: **SmileVirtual** (virtual dental/ortho
-> consultations) and **Aesthetic Virtual** (a parallel concept for aesthetic medicine:
+> related prototypes built in one repository: **Virtual Consult** (virtual dental/ortho
+> consultations) and **Aesthetic Consult** (a parallel concept for aesthetic medicine:
 > plastic surgery + med spa). It is written so that another AI or engineer can rebuild
 > the entire system from scratch without seeing the original code. Where exact values
 > matter (data shapes, formulas, copy, palette), they are given explicitly.
@@ -22,7 +22,7 @@
 
 ## 1. Product overview & philosophy
 
-### 1.1 SmileVirtual (the original)
+### 1.1 Virtual Consult (the original)
 A conversion-optimized **virtual smile-consultation** funnel for a cosmetic dentist,
 plus the practice-side tooling to run it. Origin story: the real-world flow converted
 ~0.2% of ad clicks because it asked for contact info on screen one. This redesign fixes
@@ -37,7 +37,7 @@ The practice console is framed as **a clinical work queue with an SLA clock, not
 North-star metric = **median time-to-send** (speed-to-lead is the #1 close lever).
 "The video is the sales page."
 
-### 1.2 Aesthetic Virtual (the parallel concept)
+### 1.2 Aesthetic Consult (the parallel concept)
 Same engine, re-thought for aesthetic medicine. Core thesis: **one engine, three
 playbooks** — capture → qualify → respond → book → grow. What flexes per specialty is
 **Qualify** (who deserves which response) and **Respond** (the artifact the patient gets):
@@ -60,7 +60,7 @@ too hard to do credibly; for plastics, real 3D sim is a future premium add only)
 - **No framework, no bundler, no build step, no dependencies, no server.** Plain HTML +
   CSS + ES2015+ vanilla JS. Each page is openable directly or via any static server
   (`python3 -m http.server`). Must deploy to GitHub Pages as-is.
-- **Data layer = the only "backend".** A global object (e.g. `window.SmileStore`) backed
+- **Data layer = the only "backend".** A global object (e.g. `window.Store`) backed
   by `localStorage`. All surfaces read/write only through it; never touch localStorage
   directly elsewhere. It emits change events so open views live-refresh; it also listens
   to the `storage` event for cross-tab updates.
@@ -90,7 +90,7 @@ too hard to do credibly; for plastics, real 3D sim is a future premium add only)
 **Tokens** live in `shared/tokens.css` (`:root` vars), mirrored into each app's CSS so
 surfaces are self-contained.
 
-**SmileVirtual (dental) palette:**
+**Virtual Consult (dental) palette:**
 ```
 --cream:#F6F1E9; --cream-2:#EFE7DA; --ink:#1E2A2A;
 --teal:#0E5450; --teal-deep:#0A3F3C; --teal-soft:#E3EEEC;
@@ -100,9 +100,9 @@ surfaces are self-contained.
 --display:'Fraunces',Georgia,serif; --body:'Plus Jakarta Sans',system-ui,sans-serif;
 radius ~14–22px; shadow:0 18px 50px -18px rgba(14,84,80,.45); shadow-sm:0 6px 18px -8px …
 ```
-**Aesthetic Virtual — Plastics palette (luxe plum):** `--plum:#4A2F50; --plum-deep:#33203A;
+**Aesthetic Consult — Plastics palette (luxe plum):** `--plum:#4A2F50; --plum-deep:#33203A;
 --plum-soft:#ECE2EE; --rose:#C98B86; --rose-soft:#F3E2DF; --gold:#C2A269; --ivory:#F4F0EC`.
-**Aesthetic Virtual — Med spa palette (mulberry):** `--plum:#7A3E55; --plum-deep:#5A2C40;
+**Aesthetic Consult — Med spa palette (mulberry):** `--plum:#7A3E55; --plum-deep:#5A2C40;
 --plum-soft:#F2E2E8; --rose:#D98E86; --gold:#C2A269; --ivory:#F6F0F0`.
 
 **Type:** H1/headings `Fraunces` weight 500 with italic `<em>` accents in the brand
@@ -126,12 +126,12 @@ accent color; body `Plus Jakarta Sans`. Display numerals (KPIs, prices) use Frau
 ## 4. Repository structure
 
 ```
-/                         SmileVirtual hub (index.html) — links all dental surfaces
+/                         Virtual Consult hub (index.html) — links all dental surfaces
 shared/
-  store.js                SmileStore — dental data layer + seed + analytics
+  store.js                Store — dental data layer + seed + analytics
   script-gen.js           ScriptGen.generate(lead,cfg) — dental video script
   tokens.css              design tokens
-  directory-data.js       SmileDirectory — NPI-verified doctor list + geo helpers
+  directory-data.js       Directory — NPI-verified doctor list + geo helpers
 patient/                  dental patient capture flow (index.html, styles.css, app.js)
 doctor/                   dental practice console (queue, drawer, Consult Studio,
                           Performance, Settings) + brand modal + closing-page modal
@@ -142,7 +142,7 @@ link/                     dental link-in-bio (Linktree-style, click-tracked)
 embed/                    embeddable widgets (widget.js) + gallery (index.html)
 AESTHETIC_VIRTUAL.md      strategy doc for the aesthetic concept
 aesthetic/
-  index.html              Aesthetic Virtual concept hub
+  index.html              Aesthetic Consult concept hub
   store.js                AestheticStore — plastics data layer + qualification
   patient/                plastics patient capture flow
   console/                plastics practice console (queue, drawer, Consult Studio,
@@ -166,9 +166,9 @@ plastics + med-spa surfaces.
 
 ## 5. Shared architecture pattern (applies to all three stores)
 
-Each "store" is an IIFE assigning a global (`SmileStore`, `AestheticStore`, `MedSpaStore`).
+Each "store" is an IIFE assigning a global (`Store`, `AestheticStore`, `MedSpaStore`).
 Common shape:
-- localStorage keys namespaced per product (e.g. `smilevirtual.leads.v1`,
+- localStorage keys namespaced per product (e.g. `vconsult.leads.v1`,
   `aesthetic.leads.v1`, `medspa.leads.v1`) + a `…config.v1`, optional `…cases/clicks`,
   and a `…seeded.vN` flag (bump N to force a reseed).
 - Methods: `config()/saveConfig()`, `all()`, `get(id)`, `upsert(partial)` (patient writes
@@ -180,9 +180,9 @@ Common shape:
 
 ---
 
-## 6. SmileVirtual — detailed spec
+## 6. Virtual Consult — detailed spec
 
-### 6.1 SmileStore (shared/store.js)
+### 6.1 Store (shared/store.js)
 
 **Lead schema:**
 ```
@@ -347,7 +347,7 @@ median time-to-send** — fast work earns ranking), goals-treated tags, financin
 CTA into patient flow. Deep link `?doctor=<id>` opens a profile directly. Seeded with
 **real NPI-verified Orange County dentists** (real name/NPI/city/specialty from the NPPES
 registry; ratings/financing are clearly-marked demo). Data + geo helpers in
-`shared/directory-data.js` (`SmileDirectory.{DOCTORS,GOALS,CITY,coordsFor,haversineMi}`).
+`shared/directory-data.js` (`Directory.{DOCTORS,GOALS,CITY,coordsFor,haversineMi}`).
 
 ### 6.6 Patient portal (portal/)
 Where the patient lives post-capture. Accessed via `?lead=<id>` (defaults to a sent-video
@@ -380,7 +380,7 @@ outbound link is the patient flow (`../patient/?from=site`).
 
 ---
 
-## 7. Aesthetic Virtual — detailed spec
+## 7. Aesthetic Consult — detailed spec
 
 ### 7.1 Concept hub + strategy
 `aesthetic/index.html` (plum theme) presents the vision; full write-up in
@@ -576,7 +576,7 @@ with all clinical/marketing fields marked illustrative.
 ---
 
 ## 12. Reproduction order
-1. `shared/tokens.css` + `shared/store.js` (SmileStore: schema, status/heat/SLA, config,
+1. `shared/tokens.css` + `shared/store.js` (Store: schema, status/heat/SLA, config,
    analytics, seed) + `shared/script-gen.js`.
 2. `patient/` dental flow (earned commitment + sim gate). Verify it lands leads.
 3. `doctor/` console: queue → drawer (stage-engine) → Consult Studio → Performance →

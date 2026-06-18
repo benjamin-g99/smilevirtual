@@ -1,17 +1,17 @@
 /* =============================================================================
-   SmileVirtual — link-in-bio page
+   Virtual Consult — link-in-bio page
    -----------------------------------------------------------------------------
    A Linktree-style bio page a practice links to from Instagram/TikTok.
-   - Brand-themed from SmileStore.config().brand
+   - Brand-themed from Store.config().brand
    - Prominent primary CTA -> ../patient/?from=link
    - Doctor's custom links from config.links
-   - Every tap (incl. the primary CTA, id 'primary') calls SmileStore.trackClick
+   - Every tap (incl. the primary CTA, id 'primary') calls Store.trackClick
      BEFORE navigating, so the doctor console's clickStats() reflects engagement.
    ============================================================================= */
 (function () {
   'use strict';
 
-  var Store = window.SmileStore;
+  var Store = window.Store;
   if (Store && Store.ensureSeeded) Store.ensureSeeded();
 
   /* ---- helpers ---------------------------------------------------------- */

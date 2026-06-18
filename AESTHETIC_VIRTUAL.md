@@ -1,9 +1,9 @@
-# Aesthetic Virtual — concept & strategy
+# Aesthetic Consult — concept & strategy
 
-A parallel concept to **SmileVirtual**, purpose-built for the aesthetic-medicine
+A parallel concept to **Virtual Consult**, purpose-built for the aesthetic-medicine
 market: **med spas, plastic surgeons, and cosmetic/medical dermatology.**
 
-SmileVirtual proved a loop: *capture intent → reward with a preview → personal
+Virtual Consult proved a loop: *capture intent → reward with a preview → personal
 video from the doctor → close*. Aesthetics shares the spine but the economics and
 the "right" personalization differ enormously by specialty. The product's job here
 is **routing the right amount of human effort to the right lead** — a recorded
@@ -13,12 +13,12 @@ surgeon video for a $20k rhinoplasty, an AI-built plan for a $12 Botox unit coun
 
 ## 0. The thesis: one engine, three playbooks
 
-Shared spine (reused from SmileVirtual): **Capture → Qualify → Respond → Book → Grow**,
+Shared spine (reused from Virtual Consult): **Capture → Qualify → Respond → Book → Grow**,
 all on one data loop, one console, one analytics surface.
 
 What changes per specialty is the **Respond** step (the artifact the patient gets)
 and the **Qualify** step (who deserves which artifact). That routing decision is the
-core new intelligence Aesthetic Virtual adds.
+core new intelligence Aesthetic Consult adds.
 
 | | Plastic surgery | Med spa | Dermatology |
 |---|---|---|---|
@@ -39,7 +39,7 @@ decides; the rest of the workflow flexes around it.
 ## 1. Specialty workflows
 
 ### Plastic surgery — "high-consideration concierge"
-Closest to SmileVirtual; lean into the personal video, add money + patience.
+Closest to Virtual Consult; lean into the personal video, add money + patience.
 
 1. **Intake (procedure-led):** procedure interest (rhino, breast aug/lift, tummy
    tuck, lipo, face), goals in their words, timeline, budget band + financing
@@ -97,7 +97,7 @@ Two modes under one roof; route at intake by intent.
 
 ---
 
-## 2. Reuse vs. redesign (vs. the existing SmileVirtual code)
+## 2. Reuse vs. redesign (vs. the existing Virtual Consult code)
 
 **Reuse almost as-is (the platform spine):**
 - `shared/store.js` data loop, lead model, status pipeline, heat + SLA.
@@ -149,7 +149,7 @@ Options, roughly in order of provider effort:
 
 ## 4. Per-specialty configuration, intake, qualification, AI, conversion
 
-**Configuration (Settings, extended from SmileVirtual):**
+**Configuration (Settings, extended from Virtual Consult):**
 - Specialty mode (med spa / plastics / derm) → preset intake, qualification rules,
   response modes, and copy.
 - Treatment/service catalog with pricing, units, packages, **memberships**.
@@ -200,4 +200,4 @@ supervision scope.
 
 *Build status:* this document + the `aesthetic/` concept hub articulate the vision.
 No specialty apps are built yet — see "Suggested build order" in the hub. The
-existing SmileVirtual code is the reusable spine.
+existing Virtual Consult code is the reusable spine.

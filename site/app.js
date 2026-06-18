@@ -1,8 +1,8 @@
 /* =============================================================================
-   SmileVirtual — standalone practice landing page
+   Virtual Consult — standalone practice landing page
    -----------------------------------------------------------------------------
    Auto-generated, conversion-focused single page for ONE practice. Everything
-   is themed + populated at runtime from SmileStore.config(). This surface is
+   is themed + populated at runtime from Store.config(). This surface is
    STANDALONE: it never links back to the directory and reads as the practice's
    own marketing site. The only outbound link is the patient capture flow.
    ============================================================================= */
@@ -298,14 +298,14 @@
 
   /* ---------- boot ---------- */
   function boot() {
-    if (!global.SmileStore) { return; }
-    SmileStore.ensureSeeded();
-    render(SmileStore.config());
-    applyTheme(SmileStore.config());
+    if (!global.Store) { return; }
+    Store.ensureSeeded();
+    render(Store.config());
+    applyTheme(Store.config());
     initBeforeAfter();
     // live re-theme if the practice edits brand/config elsewhere (same browser)
-    SmileStore.onChange(function () {
-      var cfg = SmileStore.config();
+    Store.onChange(function () {
+      var cfg = Store.config();
       applyTheme(cfg);
       render(cfg);
     });

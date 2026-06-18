@@ -1,5 +1,5 @@
 /* =============================================================================
-   Aesthetic Virtual — practice console (plastics)
+   Aesthetic Consult — practice console (plastics)
    Reads AestheticStore. Triages by qualification tier, drafts a surgeon script,
    records a consult video in the studio, and previews the patient closing page.
    ============================================================================= */

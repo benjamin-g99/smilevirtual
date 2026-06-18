@@ -5,7 +5,7 @@ changes don't undo deliberate conversion/closing decisions.
 
 ## What this is
 
-A static, dependency-free, high-fidelity prototype of the SmileVirtual
+A static, dependency-free, high-fidelity prototype of the Virtual Consult
 experience — **many surfaces sharing one data loop** (`shared/store.js`,
 localStorage). No build step, no framework, no server.
 
@@ -32,7 +32,7 @@ messages) and lives behind `SEEDED_KEY` (bump it to reseed).
 
 ## Architecture
 
-- `shared/store.js` — the "backend". `SmileStore.*` is the only data API:
+- `shared/store.js` — the "backend". `Store.*` is the only data API:
   `upsert` (patient writes, every step), `all/get`, `patch/setStatus/assign/
   addNote/toggleTag/saveVideo`, `funnelBySource/metrics`, `seed/reset`. Lead
   shape, status model (`new→in_review→recorded→sent→viewed→booked`), heat
@@ -52,8 +52,8 @@ messages) and lives behind `SEEDED_KEY` (bump it to reseed).
   from the case + webcam PiP, composited onto a `<canvas>` and recorded via
   `captureStream`+mic; field-based slide editing + add/reorder/delete; before/
   after slides from a persisted, uploadable case library; brand theming —
-  logo+colors from `SmileStore.config().brand` applied per-frame), and the patient
-  closing-page (`previewEmail`). Subscribes to `SmileStore.onChange`.
+  logo+colors from `Store.config().brand` applied per-frame), and the patient
+  closing-page (`previewEmail`). Subscribes to `Store.onChange`.
 
 ## Core principles (do not regress)
 
@@ -85,15 +85,15 @@ messages) and lives behind `SEEDED_KEY` (bump it to reseed).
 ## Conventions
 
 - No framework/bundler. No new deps unless we deliberately add a build setup.
-- All data goes through `SmileStore`; don't read localStorage directly elsewhere.
+- All data goes through `Store`; don't read localStorage directly elsewhere.
 - Things to replace for production are marked `PLACEHOLDER` / noted in README.
 
 ## Roadmap / next work
 
 1. **Directory** (README §3): simulation-first lead engine, goal+geo match,
    NPI-verified badges, SLA/response-time badge fed by the console, shareable
-   previews, programmatic local-SEO pages. Same `SmileStore` data model.
+   previews, programmatic local-SEO pages. Same `Store` data model.
 2. Responsive desktop for the patient flow (story panel + QR-to-phone handoff).
 3. Real smile-sim engine on the patient's actual photo.
 4. Wire the AI script to a real Claude call; wire the conversion pixel.
-5. Real backend behind `SmileStore` for true multi-device (phone → laptop).
+5. Real backend behind `Store` for true multi-device (phone → laptop).

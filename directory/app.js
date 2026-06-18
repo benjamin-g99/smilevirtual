@@ -1,13 +1,13 @@
 /* =============================================================================
-   SmileVirtual — Find a Doctor (directory)
+   Virtual Consult — Find a Doctor (directory)
    Simulation-first lead engine: browse NPI-verified local doctors, matched by
    goal + distance, then route into the free-preview consult flow. The featured
    doctor's response-time badge is computed LIVE from the practice console
-   (SmileStore) — fast, great consults literally earn better directory ranking.
+   (Store) — fast, great consults literally earn better directory ranking.
    ============================================================================= */
 (function (global) {
   'use strict';
-  const D = global.SmileDirectory;
+  const D = global.Directory;
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
 
@@ -24,8 +24,8 @@
   // console median so the directory reflects real practice performance.
   const RESP = { harris:18, aminikharrazi:22, abidali:30, adames:18, abdelmalek:26, addonizio:14, allen:36 };
   function responseHrs(doc){
-    if(doc.featured && global.SmileStore){
-      const m = SmileStore.metrics();
+    if(doc.featured && global.Store){
+      const m = Store.metrics();
       if(m.medianTimeToSendH!=null) return Math.max(1, Math.round(m.medianTimeToSendH));
     }
     return RESP[doc.id] || 24;
@@ -76,7 +76,7 @@
       <div class="body">
         <div class="nm">
           <b>${esc(d.name)}</b><span class="cred">${esc(d.credential)}</span>
-          ${d.verified?`<span class="verified" title="${d.npi?'Verified against the CMS NPPES registry · NPI '+d.npi:'SmileVirtual verified provider'}">✓ NPI-verified</span>`:''}
+          ${d.verified?`<span class="verified" title="${d.npi?'Verified against the CMS NPPES registry · NPI '+d.npi:'Virtual Consult verified provider'}">✓ NPI-verified</span>`:''}
           ${d.featured?'<span class="feat-badge">Featured</span>':''}
         </div>
         <div class="spec">${esc(d.specialty)}</div>
@@ -163,7 +163,7 @@
           <span style="text-align:center;font-size:12px;color:rgba(30,42,42,.5)">Free · no office visit to begin · personal video to follow</span>
         </div>
         <div class="npi-line">
-          ${d.npi?`Identity verified against the CMS NPPES registry — NPI ${d.npi}.`:'SmileVirtual featured provider.'}
+          ${d.npi?`Identity verified against the CMS NPPES registry — NPI ${d.npi}.`:'Virtual Consult featured provider.'}
           Ratings & results are illustrative demo data.
         </div>
       </div>`;
@@ -232,7 +232,7 @@
 
   global.Dir = { openProfile, closeProfile };
   document.addEventListener('DOMContentLoaded', ()=>{
-    if(global.SmileStore) SmileStore.ensureSeeded(); bind(); render();
+    if(global.Store) Store.ensureSeeded(); bind(); render();
     // deep link: /directory/?doctor=<id> opens that doctor's public profile directly
     const dq=new URLSearchParams(location.search).get('doctor');
     if(dq) setTimeout(()=>openProfile(dq), 60);

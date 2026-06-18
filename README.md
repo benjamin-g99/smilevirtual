@@ -1,4 +1,4 @@
-# SmileVirtual
+# Virtual Consult
 
 A working prototype of the virtual smile-consultation experience, built as **three
 surfaces that share one data loop**:
@@ -102,7 +102,7 @@ roles in the top bar.
 ## 3 · Doctor directory (spec'd; next build)
 
 The unique lead engine — Crisalix lists surgeons and uses 3D simulation as the
-magnet ([crisalix.com](https://www.crisalix.com/en)). The SmileVirtual flip:
+magnet ([crisalix.com](https://www.crisalix.com/en)). The Virtual Consult flip:
 
 - **Simulation-first, doctor-match second.** Capture intent at peak emotion (the
   free AI smile preview), *then* route to matching local doctors. The consult

@@ -1,5 +1,5 @@
 /* =============================================================================
-   SmileVirtual — directory data
+   Virtual Consult — directory data
    -----------------------------------------------------------------------------
    The doctor network behind the directory surface.
 
@@ -11,7 +11,7 @@
      bio, accent. NPPES does not hold clinical/marketing data.
 
    Dr. Brian Harris is our fictional "featured" provider — the one wired to the
-   practice console, so his response-time badge is computed live from SmileStore.
+   practice console, so his response-time badge is computed live from Store.
    ============================================================================= */
 (function (global) {
   'use strict';
@@ -94,5 +94,5 @@
   }
   function coordsFor(cityName){ return CITY[cityName] || CITY['Trabuco Canyon']; }
 
-  global.SmileDirectory = { DOCTORS, GOALS, CITY, coordsFor, haversineMi };
+  global.Directory = { DOCTORS, GOALS, CITY, coordsFor, haversineMi };
 })(window);

@@ -1,10 +1,10 @@
 /* =============================================================================
-   SmileVirtual — embeddable widget  (embed/widget.js)
+   Virtual Consult — embeddable widget  (embed/widget.js)
    -----------------------------------------------------------------------------
    A self-contained, dependency-free, IIFE widget script a practice can drop on
    ANY external website. It injects its own scoped styles (prefixed .sv-w*) so it
    never collides with the host page, and reads all config from the host's
-   <script data-*> attributes. It does NOT depend on SmileStore (it must run on
+   <script data-*> attributes. It does NOT depend on Store (it must run on
    third-party sites with no access to the prototype's storage).
 
    USAGE — drop a script tag where you want the widget (inline/badge), or anywhere

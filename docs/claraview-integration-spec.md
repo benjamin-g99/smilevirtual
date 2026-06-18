@@ -1,9 +1,9 @@
-# SmileVirtual ↔ Clara View — Smile Simulation API Request
+# Virtual Consult ↔ Clara View — Smile Simulation API Request
 
-> **From:** SmileVirtual (platform partner)
+> **From:** Virtual Consult (platform partner)
 > **To:** Clara View (https://claraview.ai)
 > **Purpose:** Define the secure API we need from Clara View to power AI smile
-> simulations inside the SmileVirtual patient and doctor experiences. This document
+> simulations inside the Virtual Consult patient and doctor experiences. This document
 > describes (a) the end-user experience so the endpoints have context, and (b) the
 > concrete endpoints, payloads, and security properties we're requesting.
 >
@@ -15,14 +15,14 @@
 
 ## 1. Who we are and how we integrate
 
-SmileVirtual is a multi-tenant platform for dental/ortho practices. Each **practice**
+Virtual Consult is a multi-tenant platform for dental/ortho practices. Each **practice**
 (tenant) runs a virtual-consultation funnel: a patient submits goals + photos, gets an
 **instant AI smile preview**, and the doctor follows up with a personalized video.
 
 Clara View is our smile-simulation engine. The integration is **server-to-server**:
 
 ```
-Patient phone ──photos──▶ SmileVirtual backend ──▶ Clara View API ──▶ rendered simulation
+Patient phone ──photos──▶ Virtual Consult backend ──▶ Clara View API ──▶ rendered simulation
                                   ▲                                          │
                                   └──────────── webhook / poll ◀────────────┘
 ```
@@ -31,7 +31,7 @@ Key consequences of this topology, which shape the requests below:
 
 - **The browser never talks to Clara directly** and never holds a Clara credential.
   All calls are made by our backend. Please scope auth to a single platform client
-  (SmileVirtual), not to end users.
+  (Virtual Consult), not to end users.
 - **We are multi-tenant.** Every call carries a `practice_id` so you can scope,
   rate-limit, and meter usage per dental practice. We'd like sub-account support if you
   have it (see §9).
@@ -260,10 +260,10 @@ the doctor approves.
 Deletes the simulation, all revisions, and all source/derived images. Returns `204`.
 Document the default retention window and whether deletes are immediate vs. queued.
 
-### 5.6 Webhook → SmileVirtual
+### 5.6 Webhook → Virtual Consult
 
 ```http
-POST https://api.smilevirtual.com/webhooks/claraview
+POST https://api.vconsult.com/webhooks/claraview
 X-ClaraView-Signature: t=1717610400,v1=hex_hmac_sha256
 Content-Type: application/json
 ```

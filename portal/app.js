@@ -1,9 +1,9 @@
 /* =============================================================================
-   SmileVirtual — Patient Portal
+   Virtual Consult — Patient Portal
    -----------------------------------------------------------------------------
    The patient's post-capture home: watch the personalized video, replay the
    smile simulation, message the practice, share with a partner, and book.
-   All data flows through window.SmileStore (the shared "backend").
+   All data flows through window.Store (the shared "backend").
    NOTE: the recorded video blob lives only in-memory in the doctor app and is
    NOT available here, so the player is a polished placeholder by design.
    ============================================================================= */
@@ -20,18 +20,18 @@
   }
 
   var leadId = null;          // active lead id
-  var unsubscribe = null;     // SmileStore.onChange teardown
+  var unsubscribe = null;     // Store.onChange teardown
 
   /* ---- lead resolution ---------------------------------------------------- */
   function resolveLeadId() {
     var params = new URLSearchParams(global.location.search);
     var fromUrl = params.get('lead');
-    if (fromUrl && SmileStore.get(fromUrl)) return fromUrl;
-    var all = SmileStore.all();
+    if (fromUrl && Store.get(fromUrl)) return fromUrl;
+    var all = Store.all();
     var sent = all.find(function (l) { return l.video && l.video.sentAt; });
     return (sent || all[0] || {}).id || null;
   }
-  function lead() { return leadId ? SmileStore.get(leadId) : null; }
+  function lead() { return leadId ? Store.get(leadId) : null; }
 
   function patientName() {
     var l = lead();
@@ -64,7 +64,7 @@
      PASSWORD GATE
      ===================================================================== */
   function showGate() {
-    var cfg = SmileStore.config();
+    var cfg = Store.config();
     var doc = cfg.doctor || {};
     var av = $('#gateAv');
     if (doc.photo) { av.innerHTML = '<img src="' + esc(doc.photo) + '" alt="">'; }
@@ -82,7 +82,7 @@
     btn.disabled = !ok;
   }
   function submitPassword() {
-    if (leadId) SmileStore.setPassword(leadId);
+    if (leadId) Store.setPassword(leadId);
     enterPortal();
   }
   function skipPassword() {
@@ -97,7 +97,7 @@
     $('#gate').style.display = 'none';
     $('#portal').style.display = '';
     render();
-    if (!unsubscribe) unsubscribe = SmileStore.onChange(onStoreChange);
+    if (!unsubscribe) unsubscribe = Store.onChange(onStoreChange);
   }
 
   function onStoreChange() {
@@ -107,7 +107,7 @@
 
   function render() {
     var l = lead();
-    var cfg = SmileStore.config();
+    var cfg = Store.config();
     if (!l) {
       $('#portal').innerHTML = '<div class="card sec"><h2>No consultation found</h2><p class="sub">We couldn’t find your smile consultation. Please use the link your dentist sent you.</p></div>';
       return;
@@ -264,7 +264,7 @@
     var bookLink = links.find(function (k) { return /book/i.test(k.id) || /book/i.test(k.label); });
     primary.textContent = '📅  Book / inquire';
     primary.onclick = function () {
-      if (leadId) try { SmileStore.trackClick('portal_primary_cta'); } catch (e) {}
+      if (leadId) try { Store.trackClick('portal_primary_cta'); } catch (e) {}
       if (bookLink && bookLink.url) global.open(bookLink.url, '_blank');
       else global.location.href = '../patient/';
     };
@@ -277,7 +277,7 @@
         '<span class="lkarrow">→</span></a>';
     }).join('');
     Array.prototype.forEach.call(box.querySelectorAll('.linkrow'), function (a) {
-      a.addEventListener('click', function () { try { SmileStore.trackClick(a.getAttribute('data-id')); } catch (e) {} });
+      a.addEventListener('click', function () { try { Store.trackClick(a.getAttribute('data-id')); } catch (e) {} });
     });
   }
 
@@ -309,7 +309,7 @@
 
   /* ---- MESSAGES ----------------------------------------------------------- */
   function renderMessages(l) {
-    var cfg = SmileStore.config();
+    var cfg = Store.config();
     $('#msgHead').textContent = 'Message ' + ((cfg.doctor && cfg.doctor.name) || 'your dentist');
     var thread = $('#thread');
     var msgs = l.messages || [];
@@ -331,7 +331,7 @@
     var body = (input.value || '').trim();
     if (!body || !leadId) return;
     input.value = '';
-    SmileStore.addMessage(leadId, 'patient', body);  // onChange re-renders the thread
+    Store.addMessage(leadId, 'patient', body);  // onChange re-renders the thread
     var thread = $('#thread');
     requestAnimationFrame(function () { thread.scrollTop = thread.scrollHeight; });
   }
@@ -363,7 +363,7 @@
      BOOT
      ===================================================================== */
   function init() {
-    SmileStore.ensureSeeded();
+    Store.ensureSeeded();
     leadId = resolveLeadId();
     var l = lead();
     var passwordSet = !!(l && l.account && l.account.passwordSet);

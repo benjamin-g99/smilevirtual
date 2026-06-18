@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmileVirtual — Embeddable Widgets</title>
+<title>Virtual Consult — Embeddable Widgets</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -88,8 +88,8 @@
 <script>
 (function () {
   'use strict';
-  if (window.SmileStore && window.SmileStore.ensureSeeded) window.SmileStore.ensureSeeded();
-  var cfg = (window.SmileStore && window.SmileStore.config) ? window.SmileStore.config() : {};
+  if (window.Store && window.Store.ensureSeeded) window.Store.ensureSeeded();
+  var cfg = (window.Store && window.Store.config) ? window.Store.config() : {};
   var brand = cfg.brand || {};
   var reviews = cfg.reviews || {};
   var accent = brand.primary || '#0E5450';

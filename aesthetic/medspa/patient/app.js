@@ -1,4 +1,4 @@
-/* Aesthetic Virtual — Med Spa concern-led patient flow (instant AI plan, no video) */
+/* Aesthetic Consult — Med Spa concern-led patient flow (instant AI plan, no video) */
 const S = window.MedSpaStore; S.ensureSeeded(); const CFG = S.config();
 const $ = id => document.getElementById(id);
 const sel = new Set(), areaSel = new Set(); let leadId=null, timeline='', currentKey='welcome';

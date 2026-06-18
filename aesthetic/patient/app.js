@@ -1,5 +1,5 @@
 /* =============================================================================
-   Aesthetic Virtual — plastic-surgery patient capture flow
+   Aesthetic Consult — plastic-surgery patient capture flow
    Procedure-led intake → confidential photos → qualification → contact gate.
    No simulation. Writes to AestheticStore (separate namespace from dental).
    ============================================================================= */
